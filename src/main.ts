@@ -6,6 +6,10 @@ import { WalletStore } from './store/wallet-store';
 import { createCardDialog } from './ui/card-dialog';
 import { renderMainView } from './ui/main-view';
 
+// --- ticket #8: offline shell, persistent storage, and wake lock ---
+import { startAppShell } from './boot/app-shell';
+// --- end ticket #8 ---
+
 const root = document.querySelector<HTMLElement>('#app');
 if (root === null) {
   throw new Error('QR Wallet could not find its #app root element.');
@@ -55,3 +59,7 @@ const view = renderMainView(root, wallet, {
     dialog.openEdit(card);
   },
 });
+
+// --- ticket #8: offline shell, persistent storage, and wake lock ---
+startAppShell();
+// --- end ticket #8 ---
