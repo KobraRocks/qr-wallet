@@ -3,8 +3,10 @@ import type { Card } from './domain/card';
 import type { Wallet } from './domain/wallet';
 import { browserStorage } from './store/browser-storage';
 import { WalletStore } from './store/wallet-store';
+import { createCardActions } from './ui/card-actions';
 import { createCardDialog } from './ui/card-dialog';
 import { renderMainView } from './ui/main-view';
+import { createToast } from './ui/toast';
 
 const root = document.querySelector<HTMLElement>('#app');
 if (root === null) {
@@ -43,6 +45,10 @@ const dialog = createCardDialog(document.body, {
   },
 });
 
+// ticket #6: Copy Payload and Share, and the polite live region they report through.
+const toast = createToast(document.body);
+const cardActions = createCardActions(toast);
+
 const view = renderMainView(root, wallet, {
   onSelectCard(cardId) {
     wallet = store.setActiveCard(cardId);
@@ -53,5 +59,12 @@ const view = renderMainView(root, wallet, {
   },
   onEditCard(card) {
     dialog.openEdit(card);
+  },
+  // ticket #6: Copy and Share act on the same Card the QR Panel is showing.
+  onCopyPayload(card) {
+    void cardActions.copyPayload(card);
+  },
+  onShareCard(card) {
+    void cardActions.shareQr(card);
   },
 });
