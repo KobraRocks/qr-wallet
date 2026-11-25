@@ -510,3 +510,49 @@ describe('WalletStore deleting a Card', () => {
     expect(storage.getItem(WALLET_KEY)).toBe(rawBefore);
   });
 });
+
+describe('WalletStore corrupt recovery handoff', () => {
+  it('hands the raw unreadable state to the recovery banner exactly once', () => {
+    const storage = new InMemoryStorage();
+    storage.setItem(WALLET_KEY, '{not json');
+    const store = new WalletStore(storage);
+
+    store.load();
+
+    expect(store.takeCorruptRecovery()).toBe('{not json');
+    expect(store.takeCorruptRecovery()).toBeNull();
+  });
+
+  it('hands nothing when the stored Wallet loaded cleanly', () => {
+    const store = new WalletStore(new InMemoryStorage());
+
+    store.load();
+
+    expect(store.takeCorruptRecovery()).toBeNull();
+  });
+
+  it('hands nothing on the launch after the Seed Cards were stored', () => {
+    const storage = new InMemoryStorage();
+    storage.setItem(WALLET_KEY, '{not json');
+    new WalletStore(storage).load();
+    const relaunched = new WalletStore(storage);
+
+    relaunched.load();
+
+    expect(relaunched.takeCorruptRecovery()).toBeNull();
+    expect(relaunched.load().cards.map((card) => card.label)).toEqual(SEED_LABELS);
+  });
+
+  it('preserves an unknown-version Wallet byte-for-byte for the banner', () => {
+    const raw = '{\n  "version": 2,\n  "cards": [],\n  "activeCardId": null\n}\n';
+    const storage = new InMemoryStorage();
+    storage.setItem(WALLET_KEY, raw);
+    const store = new WalletStore(storage);
+
+    const wallet = store.load();
+
+    expect(wallet.cards.map((card) => card.label)).toEqual(SEED_LABELS);
+    expect(storage.getItem(CORRUPT_WALLET_KEY)).toBe(raw);
+    expect(store.takeCorruptRecovery()).toBe(raw);
+  });
+});
