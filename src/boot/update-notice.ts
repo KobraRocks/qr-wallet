@@ -4,7 +4,7 @@ export interface UpdateNotice {
   dismiss(): void;
 }
 
-/** The notice class root; styles live in the ticket #8 section of styles.css. */
+/** The notice class root; styles live in the update-notice section of styles.css. */
 const NOTICE_CLASS = 'update-notice';
 
 /**

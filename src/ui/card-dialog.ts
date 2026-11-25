@@ -18,6 +18,7 @@ import {
   type VisitCardDraft,
 } from '../domain/card-draft';
 import type { Wallet } from '../domain/wallet';
+import { createButton, errorMessage } from './dom';
 
 /** Callbacks the dialog raises; the app owns the Wallet store and the main view. */
 export interface CardDialogHandlers {
@@ -111,14 +112,6 @@ function createField(options: FieldOptions): FormField {
   };
 }
 
-function createButton(text: string, className: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = className;
-  button.textContent = text;
-  return button;
-}
-
 /**
  * The kind switcher: a native radio group labeled Visit Card / Link / Text.
  * Native radios bring the group label, roving focus, and arrow-key selection
@@ -160,11 +153,6 @@ function createKindSwitcher(): {
 
   element.append(legend, options);
   return { element, radios };
-}
-
-/** A short, human message for a store or validation failure thrown during Save/Delete. */
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'The Wallet could not be updated.';
 }
 
 /**
@@ -548,7 +536,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     try {
       handlers.onSave(result.card);
     } catch (error) {
-      setFormError(errorMessage(error));
+      setFormError(errorMessage(error, 'The Wallet could not be updated.'));
       return;
     }
     // Closing after a successful save lets the app re-render first; the app
@@ -571,7 +559,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     try {
       handlers.onDelete(editingCard.id);
     } catch (error) {
-      setFormError(errorMessage(error));
+      setFormError(errorMessage(error, 'The Wallet could not be updated.'));
       return;
     }
     dialog.close();

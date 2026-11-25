@@ -270,13 +270,15 @@ export function renderMainView(
       : null;
   }
 
-  function focusPill(cardId: string): void {
+  /** Focuses the Pill for a Card id and reports whether that Pill exists. */
+  function focusPill(cardId: string): boolean {
     for (const pill of selector.querySelectorAll<HTMLElement>('[data-card-id]')) {
       if (pill.dataset.cardId === cardId) {
         pill.focus();
-        return;
+        return true;
       }
     }
+    return false;
   }
 
   function rebuildSelector(next: Wallet): void {
@@ -330,11 +332,8 @@ export function renderMainView(
 
   /** Focus after a save or delete: the Card's Pill, or the create call to action. */
   function focusCardPill(cardId: string | null): void {
-    for (const pill of selector.querySelectorAll<HTMLElement>('[data-card-id]')) {
-      if (pill.dataset.cardId === cardId) {
-        pill.focus();
-        return;
-      }
+    if (cardId !== null && focusPill(cardId)) {
+      return;
     }
     const create = content.querySelector<HTMLElement>('.wallet-view__create');
     if (create !== null) {
