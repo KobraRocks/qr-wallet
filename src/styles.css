@@ -3,7 +3,12 @@
   --shell-bg: #f4f4f5;
   --shell-fg: #18181b;
   --shell-muted: #52525b;
+  --pill-bg: #fff;
+  --pill-border: #d4d4d8;
+  --pill-active-bg: #18181b;
+  --pill-active-fg: #fff;
   --panel-radius: 14px;
+  --focus-ring: #2563eb;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -11,6 +16,11 @@
     --shell-bg: #18181b;
     --shell-fg: #fafafa;
     --shell-muted: #a1a1aa;
+    --pill-bg: #27272a;
+    --pill-border: #3f3f46;
+    --pill-active-bg: #fafafa;
+    --pill-active-fg: #18181b;
+    --focus-ring: #60a5fa;
   }
 }
 
@@ -52,20 +62,98 @@ body {
   min-height: 100dvh;
 }
 
+/*
+ * The main view is two rows: the Pill selector at the top and the active Card
+ * below it. Every edge uses max(<chrome>, env(safe-area-inset-*)) so controls
+ * and the QR Panel clear a notch, cutout, or home indicator; index.html opts in
+ * with viewport-fit=cover. No text selection on the app chrome.
+ */
 .wallet-view {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 1.25rem;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/*
+ * The horizontally scrollable row of Pills. It sits inside the view's
+ * safe-area padding, so the first and last Pill are never under an inset.
+ */
+.wallet-view__selector {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  padding-block: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wallet-view__selector::-webkit-scrollbar {
+  display: none;
+}
+
+.wallet-view__pill {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  min-height: 44px;
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--pill-border);
+  border-radius: 999px;
+  background: var(--pill-bg);
+  color: var(--shell-fg);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.wallet-view__pill:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* The selected Pill is inverted against the shell, in both themes. */
+.wallet-view__pill--active {
+  border-color: transparent;
+  background: var(--pill-active-bg);
+  color: var(--pill-active-fg);
+  font-weight: 600;
+}
+
+/* "+ New" is a create action, not a Card, so it is never selected. */
+.wallet-view__pill--new {
+  border-style: dashed;
+  background: transparent;
+  color: var(--shell-muted);
+}
+
+@media (hover: hover) {
+  .wallet-view__pill:hover:not(.wallet-view__pill--active) {
+    border-color: var(--shell-muted);
+  }
+}
+
+.wallet-view__content {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
-  min-height: 100vh;
-  min-height: 100dvh;
-  padding-top: max(1.5rem, env(safe-area-inset-top));
-  padding-right: max(1rem, env(safe-area-inset-right));
-  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
-  padding-left: max(1rem, env(safe-area-inset-left));
-  -webkit-user-select: none;
-  user-select: none;
+  min-height: 0;
+  text-align: center;
 }
 
 .wallet-view__heading {
@@ -87,8 +175,35 @@ body {
 }
 
 .wallet-view__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
   color: var(--shell-muted);
+}
+
+.wallet-view__empty-message {
+  margin: 0;
   font-size: 1rem;
+}
+
+.wallet-view__create {
+  min-height: 44px;
+  padding: 0.65rem 1.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pill-active-bg);
+  color: var(--pill-active-fg);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.wallet-view__create:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 /*
