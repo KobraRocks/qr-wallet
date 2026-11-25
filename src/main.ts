@@ -1,10 +1,15 @@
 import './styles.css';
 import type { Card } from './domain/card';
 import type { Wallet } from './domain/wallet';
+import { WalletBackup } from './store/backup';
 import { browserStorage } from './store/browser-storage';
 import { WalletStore } from './store/wallet-store';
+import { createBackupDialog, downloadBackupFile } from './ui/backup-dialog';
+import { createCardActions } from './ui/card-actions';
 import { createCardDialog } from './ui/card-dialog';
 import { renderMainView } from './ui/main-view';
+import { createRecoveryBanner } from './ui/recovery-banner';
+import { createToast } from './ui/toast';
 
 // --- ticket #8: offline shell, persistent storage, and wake lock ---
 import { startAppShell } from './boot/app-shell';
@@ -47,6 +52,31 @@ const dialog = createCardDialog(document.body, {
   },
 });
 
+// ticket #6: Copy Payload and Share, and the polite live region they report through.
+const toast = createToast(document.body);
+const cardActions = createCardActions(toast);
+
+// --- ticket #7: Backup export/import and corrupt-state recovery -----------------
+// The Backup workflow is DOM-free at its seam (the store's injected Storage); this
+// wiring only supplies the download sink and keeps the main view in step.
+const backup = new WalletBackup(store, downloadBackupFile);
+const backupDialog = createBackupDialog(document.body, {
+  onExport: () => backup.exportWallet(),
+  onPrepareImport: (contents) => backup.prepareImport(contents),
+  onConfirmImport(imported) {
+    wallet = backup.replaceWallet(imported);
+    view.update(wallet);
+  },
+});
+
+// A corrupt or unknown-version stored Wallet was preserved verbatim on load, so
+// offer the raw copy for download before the owner dismisses the banner.
+const corruptRecovery = store.takeCorruptRecovery();
+if (corruptRecovery !== null) {
+  createRecoveryBanner(document.body, () => backup.downloadCorrupt(corruptRecovery));
+}
+// ---------------------------------------------------------------------------------
+
 const view = renderMainView(root, wallet, {
   onSelectCard(cardId) {
     wallet = store.setActiveCard(cardId);
@@ -57,6 +87,16 @@ const view = renderMainView(root, wallet, {
   },
   onEditCard(card) {
     dialog.openEdit(card);
+  },
+  // ticket #6: Copy and Share act on the same Card the QR Panel is showing.
+  onCopyPayload(card) {
+    void cardActions.copyPayload(card);
+  },
+  onShareCard(card) {
+    void cardActions.shareQr(card);
+  },
+  onOpenBackup() {
+    backupDialog.open();
   },
 });
 

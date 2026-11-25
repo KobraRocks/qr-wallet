@@ -8,6 +8,9 @@ import { validateWallet, WalletValidationError } from './wallet-validation';
 export class WalletStore {
   private readonly storage: Storage;
 
+  /** Raw state the most recent load() could not read, held for the recovery banner. */
+  private corruptRecovery: string | null = null;
+
   constructor(storage: Storage) {
     this.storage = storage;
   }
@@ -23,10 +26,22 @@ export class WalletStore {
       return this.repairActiveCard(validateWallet(parsed));
     } catch {
       // Preserve the unreadable state verbatim, then start over from the Seed
-      // Cards. The banner that offers the raw copy belongs to a later ticket.
+      // Cards. takeCorruptRecovery() hands the raw value to the recovery banner.
       this.storage.setItem(CORRUPT_WALLET_KEY, stored);
+      this.corruptRecovery = stored;
       return this.seed();
     }
+  }
+
+  /**
+   * Returns the raw state the most recent load() found unreadable, so the app
+   * can offer it for download, and clears it so the banner is not shown twice.
+   * Returns null when the stored Wallet loaded cleanly.
+   */
+  takeCorruptRecovery(): string | null {
+    const raw = this.corruptRecovery;
+    this.corruptRecovery = null;
+    return raw;
   }
 
   save(wallet: Wallet): Wallet {
@@ -34,6 +49,15 @@ export class WalletStore {
     // One atomic write for the whole Wallet.
     this.storage.setItem(WALLET_KEY, JSON.stringify(validated));
     return validated;
+  }
+
+  /**
+   * Replaces the whole Wallet with a prepared import in one atomic write, and
+   * returns the validated Wallet that was stored. Validation happens before the
+   * write, so a rejected Wallet never reaches Storage.
+   */
+  replaceWallet(wallet: Wallet): Wallet {
+    return this.save(wallet);
   }
 
   /**
