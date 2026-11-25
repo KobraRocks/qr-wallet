@@ -1,7 +1,7 @@
 import { PayloadTooLargeError, utf8ByteLength } from '../domain/payload';
 import { resolveActiveCardId, type Wallet } from '../domain/wallet';
 import { validateWallet, WalletValidationError } from './wallet-validation';
-import { WalletStore } from './wallet-store';
+import type { WalletStore } from './wallet-store';
 
 /** The fixed filename of an exported Backup. */
 export const BACKUP_FILENAME = 'qr-wallet-backup.json';
