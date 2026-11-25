@@ -1,5 +1,6 @@
 import type { Wallet } from '../domain/wallet';
 import type { BackupFile } from '../store/backup';
+import { downloadTextFile } from './download';
 
 /** Callbacks the Backup dialog raises; the app owns the Wallet store and the main view. */
 export interface BackupDialogHandlers {
@@ -28,21 +29,12 @@ function errorMessage(error: unknown): string {
 }
 
 /**
- * Downloads a file through a temporary object URL and link. This is the only
- * DOM code the Backup workflow needs; the backup module itself stays DOM-free.
+ * Downloads a Backup file through the app's shared object-URL helper. This is
+ * the only DOM code the Backup workflow needs; the backup module itself stays
+ * DOM-free.
  */
 export function downloadBackupFile(file: BackupFile): void {
-  const blob = new Blob([file.contents], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = file.filename;
-  link.rel = 'noopener';
-  link.hidden = true;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  downloadTextFile(file, 'application/json');
 }
 
 function createButton(text: string, className: string): HTMLButtonElement {
