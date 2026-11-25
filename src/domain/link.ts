@@ -17,6 +17,14 @@ function hasExplicitScheme(value: string): boolean {
 }
 
 /**
+ * Literal whitespace and control characters can never appear in a URL. The
+ * browser's URL parser is more lenient than Node's — Chromium accepts
+ * "https://not a url" as "https://not%20a%20url/" and both strip a tab — so
+ * rejecting them here keeps save-time validation identical on both sides.
+ */
+const FORBIDDEN_URL_CHARACTERS = /[\s\u0000-\u001f\u007f]/;
+
+/**
  * Normalizes a Link or a Visit Card website.
  *
  * An explicit scheme is preserved and otherwise `https://` is prepended. The
@@ -25,14 +33,22 @@ function hasExplicitScheme(value: string): boolean {
  */
 export function normalizeUrl(input: string): string {
   const trimmed = input.trim();
-  if (trimmed === '') {
+  if (trimmed === '' || FORBIDDEN_URL_CHARACTERS.test(trimmed)) {
     throw new InvalidUrlError(input);
   }
 
   const candidate = hasExplicitScheme(trimmed) ? trimmed : `https://${trimmed}`;
+  let parsed: URL;
   try {
-    return new URL(candidate).toString();
+    parsed = new URL(candidate);
   } catch {
     throw new InvalidUrlError(input);
   }
+
+  // A URL host cannot be percent-encoded; Chromium accepts one anyway
+  // ("https://exa%20mple.com/"), Node rejects it. Reject it in one place.
+  if (parsed.hostname.includes('%')) {
+    throw new InvalidUrlError(input);
+  }
+  return parsed.toString();
 }

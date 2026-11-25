@@ -28,4 +28,19 @@ describe('normalizeUrl', () => {
     expect(() => normalizeUrl('')).toThrow(InvalidUrlError);
     expect(() => normalizeUrl('   ')).toThrow(InvalidUrlError);
   });
+
+  it('rejects literal whitespace inside a URL, where the browser host parser is lenient', () => {
+    // Node and Chromium disagree about a space in a host: Chromium accepts
+    // "https://exa mple.com" as "https://exa%20mple.com/", and both accept a
+    // tab, which the URL parser strips. A literal character that can never
+    // appear in a URL must be rejected before the parser sees it, so the store
+    // and the editor agree.
+    expect(() => normalizeUrl('https://exa mple.com')).toThrow(InvalidUrlError);
+    expect(() => normalizeUrl('https://exa\tmple.com')).toThrow(InvalidUrlError);
+    expect(() => normalizeUrl('mailto:ada lovelace@example.com')).toThrow(InvalidUrlError);
+  });
+
+  it('rejects a percent-encoded URL host, which Chromium tolerates', () => {
+    expect(() => normalizeUrl('https://exa%20mple.com')).toThrow(InvalidUrlError);
+  });
 });
