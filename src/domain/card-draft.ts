@@ -28,6 +28,9 @@ export interface CardDraft {
   readonly text: string;
 }
 
+/** The Card Kind a new Card starts as: a Link. */
+export const DEFAULT_NEW_CARD_KIND: CardKind = 'link';
+
 /** The default label of a new Card, matching its Card Kind. */
 const DEFAULT_LABEL_BY_KIND: Record<CardKind, string> = {
   visit: 'Visit Card',
@@ -71,6 +74,15 @@ export function newCardDraft(
     linkUrl: '',
     text: '',
   };
+}
+
+/**
+ * Selects a different Card Kind for the dialog while keeping every kind's draft
+ * values, so switching back and forth never loses what the owner has typed.
+ * Only the selected kind is validated and persisted on Save.
+ */
+export function switchDraftKind(draft: CardDraft, kind: CardKind): CardDraft {
+  return { ...draft, kind };
 }
 
 /** A draft pre-filled from a saved Card so the dialog opens with its current values. */

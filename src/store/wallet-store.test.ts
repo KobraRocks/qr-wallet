@@ -398,6 +398,53 @@ describe('WalletStore saving a Card', () => {
   });
 });
 
+describe('WalletStore across Card Kinds', () => {
+  it('makes a saved Link or Text Card active and round-trips it', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    store.load();
+
+    const afterLink = store.saveCard(linkCard('link-1', 'example.com'));
+    expect(afterLink.activeCardId).toBe('link-1');
+    expect(afterLink.cards[afterLink.cards.length - 1]?.source).toEqual({
+      kind: 'link',
+      url: 'https://example.com/',
+    });
+
+    const afterText = store.saveCard(textCard('text-1', '  shown verbatim  '));
+    expect(afterText.activeCardId).toBe('text-1');
+    expect(afterText.cards[afterText.cards.length - 1]?.source).toEqual({
+      kind: 'text',
+      text: '  shown verbatim  ',
+    });
+    expect(new WalletStore(storage).load()).toEqual(afterText);
+  });
+
+  it('replaces a Visit Card in place when its saved kind changes, dropping the vCard fields', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    const seeded = store.load();
+    const visit = seeded.cards[0];
+    if (visit === undefined) {
+      throw new Error('expected Seed Cards');
+    }
+
+    const switched: Card = {
+      id: visit.id,
+      label: 'Now a Link',
+      updatedAt: '2026-02-01T00:00:00.000Z',
+      source: { kind: 'link', url: 'https://example.com/new' },
+    };
+
+    const saved = store.saveCard(switched);
+
+    expect(saved.cards).toHaveLength(seeded.cards.length);
+    expect(saved.cards[0]).toEqual(switched);
+    expect(saved.activeCardId).toBe(visit.id);
+    expect(new WalletStore(storage).load().cards[0]).toEqual(switched);
+  });
+});
+
 describe('WalletStore deleting a Card', () => {
   it('removes a non-active Card and keeps the active Card', () => {
     const storage = new InMemoryStorage();
