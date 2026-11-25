@@ -496,6 +496,52 @@ describe('validateDraft Text', () => {
   });
 });
 
+describe('validateDraft editing a Link or Text Card', () => {
+  it('renames a Link Card without changing its Payload', () => {
+    const card: Card = {
+      id: 'link-1',
+      label: 'Website',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      source: { kind: 'link', url: 'https://example.com/contact' },
+    };
+
+    const result = validateDraft({ ...draftFromCard(card), label: 'Renamed' }, {
+      id: card.id,
+      updatedAt: identity.updatedAt,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('expected a valid draft');
+    }
+    expect(result.card.label).toBe('Renamed');
+    expect(result.card.source).toEqual(card.source);
+    expect(derivePayload(result.card)).toBe(derivePayload(card));
+  });
+
+  it('renames a Text Card without changing its verbatim Payload', () => {
+    const card: Card = {
+      id: 'text-1',
+      label: 'Hours',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      source: { kind: 'text', text: '  Open 9–5\nClosed Sundays  ' },
+    };
+
+    const result = validateDraft({ ...draftFromCard(card), label: 'Opening hours' }, {
+      id: card.id,
+      updatedAt: identity.updatedAt,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('expected a valid draft');
+    }
+    expect(result.card.label).toBe('Opening hours');
+    expect(result.card.source).toEqual(card.source);
+    expect(derivePayload(result.card)).toBe(derivePayload(card));
+  });
+});
+
 describe('validateDraft after switching Card Kind', () => {
   it('saves only the selected kind’s Payload and drops the Visit Card fields', () => {
     const visit = savedVisitCard({
