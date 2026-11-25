@@ -1,3 +1,4 @@
+import type { Card } from '../domain/card';
 import { resolveActiveCardId, type Wallet } from '../domain/wallet';
 import { createSeedWallet } from './seed-wallet';
 import { CORRUPT_WALLET_KEY, WALLET_KEY, type Storage } from './storage';
@@ -46,6 +47,36 @@ export class WalletStore {
       throw new WalletValidationError(`Card "${cardId}" does not exist in the Wallet.`);
     }
     return this.save({ ...wallet, activeCardId: cardId });
+  }
+
+  /**
+   * Saves a new or edited Card in the Wallet and makes it active, so the QR
+   * Panel and Pills show the Card the owner just saved. A new Card is appended;
+   * an edited Card replaces its previous version without reordering the Wallet.
+   * Appending, replacing, and the Payload ceiling are validated by save().
+   */
+  saveCard(card: Card): Wallet {
+    const wallet = this.load();
+    const exists = wallet.cards.some((candidate) => candidate.id === card.id);
+    const cards = exists
+      ? wallet.cards.map((candidate) => (candidate.id === card.id ? card : candidate))
+      : [...wallet.cards, card];
+    return this.save({ ...wallet, cards, activeCardId: card.id });
+  }
+
+  /**
+   * Removes a Card and persists the Wallet. Deleting the active Card activates
+   * the first remaining Card; deleting the last Card leaves an empty Wallet and
+   * never re-seeds it. An unknown id throws without touching storage.
+   */
+  deleteCard(cardId: string): Wallet {
+    const wallet = this.load();
+    const cards = wallet.cards.filter((card) => card.id !== cardId);
+    if (cards.length === wallet.cards.length) {
+      throw new WalletValidationError(`Card "${cardId}" does not exist in the Wallet.`);
+    }
+    const next: Wallet = { ...wallet, cards };
+    return this.save({ ...next, activeCardId: resolveActiveCardId(next) });
   }
 
   private seed(): Wallet {
