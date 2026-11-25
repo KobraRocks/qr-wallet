@@ -283,6 +283,13 @@ const rejectedImports: readonly RejectedImport[] = [
     message: /Card 1 source is missing the "text" property\./,
   },
   {
+    reason: 'a Text Card whose text is only whitespace',
+    contents: backupJson((value) => {
+      soleCard(value)['source'] = { kind: 'text', text: '  \n\t ' };
+    }),
+    message: /Card 1 is a Text Card with blank text\./,
+  },
+  {
     reason: 'a Visit Card without a first or last name',
     contents: backupJson((value) => {
       soleCard(value)['source'] = {

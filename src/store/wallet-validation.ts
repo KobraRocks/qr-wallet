@@ -104,7 +104,13 @@ function parseSource(value: unknown, context: string): PayloadSource {
     case 'text': {
       const sourceContext = `${context} source`;
       requireExactKeys(value, ['kind', 'text'], sourceContext);
-      return { kind: 'text', text: requireString(value, 'text', sourceContext) };
+      const text = requireString(value, 'text', sourceContext);
+      // The editor rejects whitespace-only Text; stored and imported state must
+      // agree, or a Backup could reintroduce a Card the editor forbids.
+      if (text.trim() === '') {
+        fail(`${context} is a Text Card with blank text.`);
+      }
+      return { kind: 'text', text };
     }
     default:
       fail(`${context} has an unknown Card Kind.`);
