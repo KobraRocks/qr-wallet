@@ -1,0 +1,25 @@
+{
+  "name": "qr-wallet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A local-only wallet of scannable QR codes.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "qr": "0.7.2"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.2"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}
