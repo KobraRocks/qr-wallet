@@ -9,6 +9,10 @@
   --pill-active-fg: #fff;
   --panel-radius: 14px;
   --focus-ring: #2563eb;
+  --dialog-bg: #fff;
+  --field-bg: #fff;
+  --field-border: #d4d4d8;
+  --danger: #b91c1c;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -21,6 +25,10 @@
     --pill-active-bg: #fafafa;
     --pill-active-fg: #18181b;
     --focus-ring: #60a5fa;
+    --dialog-bg: #1f1f23;
+    --field-bg: #27272a;
+    --field-border: #3f3f46;
+    --danger: #f87171;
   }
 }
 
@@ -234,4 +242,223 @@ body {
   width: 100%;
   height: 100%;
   fill: #000;
+}
+
+/*
+ * The active Card's action row. Ticket #6 adds Copy Payload and Share beside
+ * Edit, so the row is a plain wrapping flex container.
+ */
+.wallet-view__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.wallet-view__action {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--pill-border);
+  border-radius: 999px;
+  background: var(--pill-bg);
+  color: var(--shell-fg);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.wallet-view__action:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .wallet-view__action:hover {
+    border-color: var(--shell-muted);
+  }
+}
+
+/*
+ * The native modal Card editor. showModal() supplies the focus trap, the Esc
+ * close, the focus return, and the non-light-dismissing backdrop; the styles
+ * below only shape the form. The form scrolls inside a viewport-capped dialog
+ * so the actions stay reachable on short screens.
+ */
+.card-dialog {
+  width: min(100% - 2rem, 26rem);
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  background: var(--dialog-bg);
+  color: var(--shell-fg);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.35);
+  overflow: hidden;
+}
+
+.card-dialog::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+.card-dialog__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: calc(100dvh - 2rem);
+  padding: 1.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.card-dialog__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.card-dialog__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.card-dialog__kind-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.card-dialog__kind-fields[hidden] {
+  display: none;
+}
+
+.card-dialog__name-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.card-dialog__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.card-dialog__field-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.card-dialog__input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--field-border);
+  border-radius: 10px;
+  background: var(--field-bg);
+  color: var(--shell-fg);
+  font: inherit;
+  /* 1rem keeps iOS Safari from zooming into a focused field. */
+  font-size: 1rem;
+}
+
+.card-dialog__input:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.card-dialog__input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.card-dialog__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.card-dialog__form-error {
+  border-radius: 10px;
+}
+
+.card-dialog__delete {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--field-border);
+}
+
+.card-dialog__delete[hidden] {
+  display: none;
+}
+
+.card-dialog__delete-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-dialog__delete-confirm[hidden] {
+  display: none;
+}
+
+.card-dialog__delete-question {
+  margin: 0;
+  color: var(--shell-muted);
+  font-size: 0.9rem;
+}
+
+.card-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.card-dialog__button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.6rem 1.1rem;
+  border: 1px solid var(--field-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--shell-fg);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.card-dialog__button:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.card-dialog__button--primary {
+  border-color: transparent;
+  background: var(--pill-active-bg);
+  color: var(--pill-active-fg);
+}
+
+.card-dialog__button--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+@media (hover: hover) {
+  .card-dialog__button:hover {
+    border-color: var(--shell-muted);
+  }
+
+  .card-dialog__button--primary:hover {
+    border-color: transparent;
+  }
 }

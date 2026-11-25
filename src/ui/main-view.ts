@@ -22,13 +22,21 @@ export interface MainViewHandlers {
    * The view swaps the QR Panel, label, and subtitle in place with that Wallet.
    */
   onSelectCard(cardId: string): Wallet;
-  /** Opens the Card editor. Wired in ticket #4; the "+ New" Pill is present now. */
-  onNewCard?(): void;
+  /** Opens the editor for a new Card; it becomes active once saved. */
+  onNewCard(): void;
+  /** Opens the editor pre-filled with the given Card. */
+  onEditCard(card: Card): void;
 }
 
 /** A mounted main view that re-renders in place when the Wallet changes. */
 export interface MainView {
   update(wallet: Wallet): void;
+  /**
+   * Moves focus to a Card's Pill after the Wallet changed, or to the create
+   * call to action when there is no active Card. Used after the editor closes
+   * so a save or delete lands the owner on the updated Card.
+   */
+  focusCardPill(cardId: string | null): void;
 }
 
 const ACTIVE_PILL_CLASS = 'wallet-view__pill--active';
@@ -48,7 +56,7 @@ function createPill(card: Card, onSelect: (cardId: string) => void): HTMLButtonE
 
 /**
  * The "+ New" Pill is present in every Wallet state, including empty, so creating
- * a Card is always discoverable. Ticket #4 wires it to the native dialog.
+ * a Card is always discoverable. It opens the same modal editor the Edit action uses.
  */
 function createNewPill(handlers: MainViewHandlers): HTMLButtonElement {
   const pill = document.createElement('button');
@@ -57,7 +65,7 @@ function createNewPill(handlers: MainViewHandlers): HTMLButtonElement {
   pill.textContent = '+ New';
   pill.setAttribute('aria-haspopup', 'dialog');
   pill.addEventListener('click', () => {
-    handlers.onNewCard?.();
+    handlers.onNewCard();
   });
   return pill;
 }
@@ -105,6 +113,29 @@ function createQrPanel(card: Card): HTMLElement {
   return panel;
 }
 
+/**
+ * The active Card's action row. Edit is the only action this ticket adds; Copy
+ * Payload and Share from ticket #6 belong beside it in the same row.
+ */
+function createActions(card: Card, handlers: MainViewHandlers): HTMLElement {
+  const actions = document.createElement('div');
+  actions.className = 'wallet-view__actions';
+  actions.setAttribute('role', 'group');
+  actions.setAttribute('aria-label', 'Card actions');
+
+  const edit = document.createElement('button');
+  edit.type = 'button';
+  edit.className = 'wallet-view__action';
+  edit.textContent = 'Edit';
+  edit.setAttribute('aria-haspopup', 'dialog');
+  edit.addEventListener('click', () => {
+    handlers.onEditCard(card);
+  });
+  actions.append(edit);
+
+  return actions;
+}
+
 /** The empty state: no active Card, one call to action, and the "+ New" Pill above it. */
 function createEmptyState(handlers: MainViewHandlers): HTMLElement {
   const empty = document.createElement('div');
@@ -120,7 +151,7 @@ function createEmptyState(handlers: MainViewHandlers): HTMLElement {
   create.textContent = 'Create a Card';
   create.setAttribute('aria-haspopup', 'dialog');
   create.addEventListener('click', () => {
-    handlers.onNewCard?.();
+    handlers.onNewCard();
   });
 
   empty.append(message, create);
@@ -165,7 +196,7 @@ export function renderMainView(
       : null;
   }
 
-  function focusCardPill(cardId: string): void {
+  function focusPill(cardId: string): void {
     for (const pill of selector.querySelectorAll<HTMLElement>('[data-card-id]')) {
       if (pill.dataset.cardId === cardId) {
         pill.focus();
@@ -181,7 +212,7 @@ export function renderMainView(
       createNewPill(handlers),
     );
     if (previousFocus !== null) {
-      focusCardPill(previousFocus);
+      focusPill(previousFocus);
     }
   }
 
@@ -196,7 +227,9 @@ export function renderMainView(
   function renderContent(next: Wallet, activeId: string | null): void {
     const card = next.cards.find((candidate) => candidate.id === activeId) ?? null;
     content.replaceChildren(
-      ...(card === null ? [createEmptyState(handlers)] : [createHeading(card), createQrPanel(card)]),
+      ...(card === null
+        ? [createEmptyState(handlers)]
+        : [createHeading(card), createQrPanel(card), createActions(card, handlers)]),
     );
   }
 
@@ -221,7 +254,23 @@ export function renderMainView(
     renderContent(next, activeId);
   }
 
+  /** Focus after a save or delete: the Card's Pill, or the create call to action. */
+  function focusCardPill(cardId: string | null): void {
+    for (const pill of selector.querySelectorAll<HTMLElement>('[data-card-id]')) {
+      if (pill.dataset.cardId === cardId) {
+        pill.focus();
+        return;
+      }
+    }
+    const create = content.querySelector<HTMLElement>('.wallet-view__create');
+    if (create !== null) {
+      create.focus();
+      return;
+    }
+    selector.querySelector<HTMLElement>('.wallet-view__pill--new')?.focus();
+  }
+
   update(wallet);
 
-  return { update };
+  return { update, focusCardPill };
 }
