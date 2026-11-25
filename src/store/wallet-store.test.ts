@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { emptyWallet, FailingStorage, InMemoryStorage } from '../../test/helpers';
 import type { Card, VisitCardSource } from '../domain/card';
 import { PayloadTooLargeError } from '../domain/payload';
-import type { Wallet } from '../domain/wallet';
+import { activeCard, type Wallet } from '../domain/wallet';
 import { CORRUPT_WALLET_KEY, WALLET_KEY } from './storage';
 import { WalletValidationError } from './wallet-validation';
 import { WalletStore } from './wallet-store';
@@ -51,6 +51,12 @@ function textCard(id: string, text: string): Card {
 
 function walletWith(cards: readonly Card[]): Wallet {
   return { version: 1, cards, activeCardId: cards[0]?.id ?? null };
+}
+
+/** The active Card id as written to Storage, proving a repair or an activation was saved. */
+function storedActiveId(storage: InMemoryStorage): unknown {
+  const raw = storage.getItem(WALLET_KEY);
+  return raw === null ? undefined : (JSON.parse(raw) as Record<string, unknown>)['activeCardId'];
 }
 
 describe('WalletStore first launch', () => {
@@ -106,7 +112,7 @@ describe('WalletStore round trip', () => {
 });
 
 describe('WalletStore active Card repair', () => {
-  it('falls back to the first Card when the stored active id does not resolve', () => {
+  it('falls back to the first Card when the stored active id does not resolve, and persists it', () => {
     const storage = new InMemoryStorage();
     const store = new WalletStore(storage);
     const seeded = store.load();
@@ -115,6 +121,21 @@ describe('WalletStore active Card repair', () => {
     const loaded = store.load();
 
     expect(loaded.activeCardId).toBe(seeded.cards[0]?.id);
+    expect(storedActiveId(storage)).toBe(seeded.cards[0]?.id);
+  });
+
+  it('clears an unresolvable active id in an empty Wallet', () => {
+    const storage = new InMemoryStorage();
+    storage.setItem(
+      WALLET_KEY,
+      JSON.stringify({ version: 1, cards: [], activeCardId: 'missing-card' }),
+    );
+
+    const loaded = new WalletStore(storage).load();
+
+    expect(loaded.activeCardId).toBeNull();
+    expect(activeCard(loaded)).toBeNull();
+    expect(storedActiveId(storage)).toBeNull();
   });
 
   it('has no active Card in an empty Wallet', () => {
@@ -122,7 +143,49 @@ describe('WalletStore active Card repair', () => {
     const store = new WalletStore(storage);
     store.save({ version: 1, cards: [], activeCardId: null });
 
-    expect(store.load().activeCardId).toBeNull();
+    const loaded = store.load();
+
+    expect(loaded.activeCardId).toBeNull();
+    expect(activeCard(loaded)).toBeNull();
+  });
+});
+
+describe('WalletStore activating a Card', () => {
+  it('persists the newly active Card and restores it on the next launch', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    const seeded = store.load();
+    const [firstCard, , thirdCard] = seeded.cards;
+    if (firstCard === undefined || thirdCard === undefined) {
+      throw new Error('expected three Seed Cards');
+    }
+    expect(seeded.activeCardId).toBe(firstCard.id);
+
+    const activated = store.setActiveCard(thirdCard.id);
+
+    expect(activated.activeCardId).toBe(thirdCard.id);
+    expect(activeCard(activated)?.id).toBe(thirdCard.id);
+    expect(storedActiveId(storage)).toBe(thirdCard.id);
+    expect(new WalletStore(storage).load().activeCardId).toBe(thirdCard.id);
+  });
+
+  it('rejects an id that is not in the Wallet without changing the stored active Card', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    const seeded = store.load();
+
+    expect(() => store.setActiveCard('missing-card')).toThrow(WalletValidationError);
+    expect(storedActiveId(storage)).toBe(seeded.activeCardId);
+    expect(new WalletStore(storage).load().activeCardId).toBe(seeded.activeCardId);
+  });
+
+  it('cannot activate a Card in an empty Wallet', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    store.save({ version: 1, cards: [], activeCardId: null });
+
+    expect(() => store.setActiveCard('missing-card')).toThrow(WalletValidationError);
+    expect(storedActiveId(storage)).toBeNull();
   });
 });
 
