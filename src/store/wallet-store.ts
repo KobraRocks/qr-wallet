@@ -1,9 +1,9 @@
-import type { Wallet } from '../domain/wallet';
+import { resolveActiveCardId, type Wallet } from '../domain/wallet';
 import { createSeedWallet } from './seed-wallet';
 import { CORRUPT_WALLET_KEY, WALLET_KEY, type Storage } from './storage';
-import { validateWallet } from './wallet-validation';
+import { validateWallet, WalletValidationError } from './wallet-validation';
 
-/** Loads, saves, validates, and seeds the Wallet through an injected Storage. */
+/** Loads, saves, validates, seeds, and remembers the active Card through an injected Storage. */
 export class WalletStore {
   private readonly storage: Storage;
 
@@ -35,15 +35,33 @@ export class WalletStore {
     return validated;
   }
 
+  /**
+   * Makes the given Card active and saves the Wallet, returning the updated
+   * Wallet. An id that does not resolve throws instead of silently repairing,
+   * so a caller can never activate a Card that is no longer in the Wallet.
+   */
+  setActiveCard(cardId: string): Wallet {
+    const wallet = this.load();
+    if (!wallet.cards.some((card) => card.id === cardId)) {
+      throw new WalletValidationError(`Card "${cardId}" does not exist in the Wallet.`);
+    }
+    return this.save({ ...wallet, activeCardId: cardId });
+  }
+
   private seed(): Wallet {
     return this.save(createSeedWallet());
   }
 
+  /**
+   * Repairs a stored active id that does not resolve to the first Card (or to
+   * null when the Wallet is empty) and persists the repair, so every launch
+   * after the first already holds a resolvable active id.
+   */
   private repairActiveCard(wallet: Wallet): Wallet {
-    const ids = new Set(wallet.cards.map((card) => card.id));
-    if (wallet.activeCardId !== null && ids.has(wallet.activeCardId)) {
+    const activeCardId = resolveActiveCardId(wallet);
+    if (activeCardId === wallet.activeCardId) {
       return wallet;
     }
-    return { ...wallet, activeCardId: wallet.cards[0]?.id ?? null };
+    return this.save({ ...wallet, activeCardId });
   }
 }

@@ -8,5 +8,10 @@ if (root === null) {
   throw new Error('QR Wallet could not find its #app root element.');
 }
 
+// The Wallet store is the only owner of loading, saving, and the active Card id,
+// so a Pill tap persists the selection and the next launch restores it.
 const store = new WalletStore(browserStorage);
-renderMainView(root, store.load());
+
+renderMainView(root, store.load(), {
+  onSelectCard: (cardId) => store.setActiveCard(cardId),
+});
