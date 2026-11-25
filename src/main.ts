@@ -11,6 +11,10 @@ import { renderMainView } from './ui/main-view';
 import { createRecoveryBanner } from './ui/recovery-banner';
 import { createToast } from './ui/toast';
 
+// --- ticket #8: offline shell, persistent storage, and wake lock ---
+import { startAppShell } from './boot/app-shell';
+// --- end ticket #8 ---
+
 const root = document.querySelector<HTMLElement>('#app');
 if (root === null) {
   throw new Error('QR Wallet could not find its #app root element.');
@@ -95,3 +99,7 @@ const view = renderMainView(root, wallet, {
     backupDialog.open();
   },
 });
+
+// --- ticket #8: offline shell, persistent storage, and wake lock ---
+startAppShell();
+// --- end ticket #8 ---
