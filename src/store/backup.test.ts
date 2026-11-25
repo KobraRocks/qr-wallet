@@ -494,7 +494,7 @@ describe('Backup import replacement', () => {
     expect(imported.activeCardId).toBe('card-99');
   });
 
-  it('normalizes imported Link urls and Visit Card websites like a saved Card', () => {
+  it('normalizes imported Link URLs and Visit Card websites like a saved Card', () => {
     const backup = new WalletBackup(new WalletStore(new InMemoryStorage()), collectingSink().sink);
     const visit = visitCard('visit-1');
     const contents = backupJson((value) => {

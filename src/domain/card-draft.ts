@@ -1,17 +1,16 @@
-import { MAX_LABEL_LENGTH, type Card, type CardKind, type PayloadSource } from './card';
+import {
+  CARD_KIND_NAMES,
+  MAX_LABEL_LENGTH,
+  type Card,
+  type CardKind,
+  type PayloadSource,
+  type VisitCardFields,
+} from './card';
 import { InvalidUrlError, normalizeUrl } from './link';
 import { assertPayloadFits, derivePayload, PayloadTooLargeError } from './payload';
 
 /** The Visit Card fields the editor owns, without the kind discriminant. */
-export interface VisitCardDraft {
-  firstName: string;
-  lastName: string;
-  organization: string;
-  title: string;
-  phone: string;
-  email: string;
-  website: string;
-}
+export type VisitCardDraft = VisitCardFields;
 
 /**
  * One in-progress Card in the editor.
@@ -30,13 +29,6 @@ export interface CardDraft {
 
 /** The Card Kind a new Card starts as: a Link. */
 export const DEFAULT_NEW_CARD_KIND: CardKind = 'link';
-
-/** The default label of a new Card, matching its Card Kind. */
-const DEFAULT_LABEL_BY_KIND: Record<CardKind, string> = {
-  visit: 'Visit Card',
-  link: 'Link',
-  text: 'Text',
-};
 
 function emptyVisitDraft(): VisitCardDraft {
   return {
@@ -69,7 +61,7 @@ export function newCardDraft(
 ): CardDraft {
   return {
     kind,
-    label: distinctLabel(DEFAULT_LABEL_BY_KIND[kind], existingLabels),
+    label: distinctLabel(CARD_KIND_NAMES[kind], existingLabels),
     visit: emptyVisitDraft(),
     linkUrl: '',
     text: '',
@@ -122,20 +114,10 @@ export function draftFromCard(card: Card): CardDraft {
   const base = newCardDraft(card.source.kind);
 
   switch (card.source.kind) {
-    case 'visit':
-      return {
-        ...base,
-        label: card.label,
-        visit: {
-          firstName: card.source.firstName,
-          lastName: card.source.lastName,
-          organization: card.source.organization,
-          title: card.source.title,
-          phone: card.source.phone,
-          email: card.source.email,
-          website: card.source.website,
-        },
-      };
+    case 'visit': {
+      const { kind: _kind, ...visit } = card.source;
+      return { ...base, label: card.label, visit };
+    }
     case 'link':
       return { ...base, label: card.label, linkUrl: card.source.url };
     case 'text':

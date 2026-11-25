@@ -1,18 +1,6 @@
-import type { Card, CardKind } from '../domain/card';
+import { CARD_KIND_NAMES, type Card } from '../domain/card';
 import { resolveActiveCardId, type Wallet } from '../domain/wallet';
 import { cardQrSvg } from '../qr/card-svg';
-
-/** The short subtitle shown under the active Card's label. */
-export function subtitleForKind(kind: CardKind): string {
-  switch (kind) {
-    case 'visit':
-      return 'Contact details';
-    case 'link':
-      return 'Link';
-    case 'text':
-      return 'Text';
-  }
-}
 
 /** Callbacks the main view raises; the app wires them to the Wallet store and dialogs. */
 export interface MainViewHandlers {
@@ -149,7 +137,7 @@ function createHeading(card: Card): HTMLElement {
 
   const subtitle = document.createElement('p');
   subtitle.className = 'wallet-view__subtitle';
-  subtitle.textContent = subtitleForKind(card.source.kind);
+  subtitle.textContent = CARD_KIND_NAMES[card.source.kind];
 
   heading.append(label, subtitle);
   return heading;

@@ -1,4 +1,11 @@
-import { createCardId, MAX_LABEL_LENGTH, type Card, type CardKind } from '../domain/card';
+import {
+  CARD_KIND_NAMES,
+  CARD_KINDS,
+  createCardId,
+  MAX_LABEL_LENGTH,
+  type Card,
+  type CardKind,
+} from '../domain/card';
 import {
   type CardDraft,
   DEFAULT_NEW_CARD_KIND,
@@ -11,16 +18,6 @@ import {
   type VisitCardDraft,
 } from '../domain/card-draft';
 import type { Wallet } from '../domain/wallet';
-
-/** The human name of each Card Kind, used for the dialog title and the kind switcher. */
-const KIND_NAME = {
-  visit: 'Visit Card',
-  link: 'Link',
-  text: 'Text',
-} satisfies Record<CardKind, string>;
-
-/** The Card Kinds in the order the kind switcher offers them. */
-const KINDS: readonly CardKind[] = ['visit', 'link', 'text'];
 
 /** Callbacks the dialog raises; the app owns the Wallet store and the main view. */
 export interface CardDialogHandlers {
@@ -136,13 +133,13 @@ function createKindSwitcher(): {
 
   const legend = document.createElement('legend');
   legend.className = 'card-dialog__kind-legend';
-  legend.textContent = 'Card kind';
+  legend.textContent = 'Card Kind';
 
   const options = document.createElement('div');
   options.className = 'card-dialog__kind-options';
 
   const radios = new Map<CardKind, HTMLInputElement>();
-  for (const kind of KINDS) {
+  for (const kind of CARD_KINDS) {
     const option = document.createElement('label');
     option.className = 'card-dialog__kind-option';
 
@@ -154,7 +151,7 @@ function createKindSwitcher(): {
 
     const name = document.createElement('span');
     name.className = 'card-dialog__kind-name';
-    name.textContent = KIND_NAME[kind];
+    name.textContent = CARD_KIND_NAMES[kind];
 
     option.append(radio, name);
     options.append(option);
@@ -489,7 +486,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     if (radio !== undefined) {
       radio.checked = true;
     }
-    title.textContent = `${editingCard === null ? 'New' : 'Edit'} ${KIND_NAME[kind]}`;
+    title.textContent = `${editingCard === null ? 'New' : 'Edit'} ${CARD_KIND_NAMES[kind]}`;
   }
 
   /** Switches the selected Card Kind without losing any kind's draft values. */
@@ -522,7 +519,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     labelField.input.focus();
   }
 
-  for (const kind of KINDS) {
+  for (const kind of CARD_KINDS) {
     const radio = kindSwitcher.radios.get(kind);
     if (radio === undefined) {
       continue;

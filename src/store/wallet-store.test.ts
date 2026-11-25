@@ -339,7 +339,7 @@ describe('WalletStore validation on save', () => {
 });
 
 describe('WalletStore normalization on save', () => {
-  it('normalizes Link urls and Visit Card websites', () => {
+  it('normalizes Link URLs and Visit Card websites', () => {
     const storage = new InMemoryStorage();
     const store = new WalletStore(storage);
     const visit = visitCard('visit-1', { website: 'example.com/contact' });

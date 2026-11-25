@@ -153,9 +153,10 @@ function parseCard(value: unknown, index: number): Card {
 /**
  * Strictly validates and canonicalizes unknown stored state into a Wallet.
  *
- * Version 1 rejects unknown versions and shapes outright. Link urls and Visit
+ * Version 1 rejects unknown versions and shapes outright. Link URLs and Visit
  * Card websites are normalized here so the stored value is the value displayed,
- * copied, and encoded. Every Payload is checked against the 800-byte ceiling.
+ * copied, and encoded. A Text Card must carry non-blank text, matching the
+ * editor. Every Payload is checked against the 800-byte ceiling.
  */
 export function validateWallet(value: unknown): Wallet {
   if (!isRecord(value)) {
