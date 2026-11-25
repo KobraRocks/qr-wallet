@@ -26,6 +26,8 @@ export interface MainViewHandlers {
   onNewCard(): void;
   /** Opens the editor pre-filled with the given Card. */
   onEditCard(card: Card): void;
+  /** Opens the Backup dialog from the footer gear. */
+  onOpenBackup(): void;
 }
 
 /** A mounted main view that re-renders in place when the Wallet changes. */
@@ -40,6 +42,69 @@ export interface MainView {
 }
 
 const ACTIVE_PILL_CLASS = 'wallet-view__pill--active';
+
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+
+/**
+ * A small gear glyph for the footer Backup control. It is aria-hidden because
+ * the button itself carries the accessible name; no user data reaches the DOM.
+ */
+function createGearIcon(): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '22');
+  svg.setAttribute('height', '22');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+
+  const ring = document.createElementNS(SVG_NAMESPACE, 'circle');
+  ring.setAttribute('cx', '12');
+  ring.setAttribute('cy', '12');
+  ring.setAttribute('r', '7');
+  ring.setAttribute('fill', 'none');
+  ring.setAttribute('stroke', 'currentColor');
+  ring.setAttribute('stroke-width', '2');
+
+  const hub = document.createElementNS(SVG_NAMESPACE, 'circle');
+  hub.setAttribute('cx', '12');
+  hub.setAttribute('cy', '12');
+  hub.setAttribute('r', '2.5');
+  hub.setAttribute('fill', 'none');
+  hub.setAttribute('stroke', 'currentColor');
+  hub.setAttribute('stroke-width', '2');
+
+  const teeth = document.createElementNS(SVG_NAMESPACE, 'path');
+  teeth.setAttribute(
+    'd',
+    'M19 12h3M2 12h3M12 5V2M12 22v-3M16.95 16.95l2.12 2.12M4.93 4.93l2.12 2.12M16.95 7.05l2.12-2.12M4.93 19.07l2.12-2.12',
+  );
+  teeth.setAttribute('fill', 'none');
+  teeth.setAttribute('stroke', 'currentColor');
+  teeth.setAttribute('stroke-width', '2');
+  teeth.setAttribute('stroke-linecap', 'round');
+
+  svg.append(ring, hub, teeth);
+  return svg;
+}
+
+/** The footer holds only the Backup gear, so export and import stay off the scanning path. */
+function createFooter(handlers: MainViewHandlers): HTMLElement {
+  const footer = document.createElement('footer');
+  footer.className = 'wallet-view__footer';
+
+  const backup = document.createElement('button');
+  backup.type = 'button';
+  backup.className = 'wallet-view__backup';
+  backup.setAttribute('aria-label', 'Backup');
+  backup.setAttribute('aria-haspopup', 'dialog');
+  backup.append(createGearIcon());
+  backup.addEventListener('click', () => {
+    handlers.onOpenBackup();
+  });
+
+  footer.append(backup);
+  return footer;
+}
 
 function createPill(card: Card, onSelect: (cardId: string) => void): HTMLButtonElement {
   const pill = document.createElement('button');
@@ -182,7 +247,7 @@ export function renderMainView(
   const content = document.createElement('div');
   content.className = 'wallet-view__content';
 
-  view.append(selector, content);
+  view.append(selector, content, createFooter(handlers));
   root.replaceChildren(view);
 
   /** Distinct Cards and labels need a fresh set of Pills; active-id changes do not. */
