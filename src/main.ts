@@ -1,4 +1,5 @@
 import './styles.css';
+import { startAppShell } from './boot/app-shell';
 import type { Card } from './domain/card';
 import type { Wallet } from './domain/wallet';
 import { WalletBackup } from './store/backup';
@@ -11,10 +12,6 @@ import { renderMainView } from './ui/main-view';
 import { createRecoveryBanner } from './ui/recovery-banner';
 import { createToast } from './ui/toast';
 
-// --- ticket #8: offline shell, persistent storage, and wake lock ---
-import { startAppShell } from './boot/app-shell';
-// --- end ticket #8 ---
-
 const root = document.querySelector<HTMLElement>('#app');
 if (root === null) {
   throw new Error('QR Wallet could not find its #app root element.');
@@ -26,8 +23,25 @@ const store = new WalletStore(browserStorage);
 
 let wallet: Wallet = store.load();
 
-/** The Card to focus once the editor has closed after a save or delete. */
-let cardIdToFocus: string | null | undefined;
+/**
+ * Where focus goes once the editor has closed after a save or delete. Cancel and
+ * Esc keep the browser's native focus return, so nothing is moved for them.
+ */
+type FocusAfterClose =
+  | { readonly kind: 'keep-native' }
+  | { readonly kind: 'empty-state' }
+  | { readonly kind: 'card'; readonly cardId: string };
+
+/** The focus decision for the next editor close; reset once it has been applied. */
+let focusAfterClose: FocusAfterClose = { kind: 'keep-native' };
+
+/** Remembers where focus belongs after the editor saves or deletes a Card. */
+function rememberFocusAfterClose(updated: Wallet): void {
+  focusAfterClose =
+    updated.activeCardId === null
+      ? { kind: 'empty-state' }
+      : { kind: 'card', cardId: updated.activeCardId };
+}
 
 // The editor lives at document level, not inside #app: the main view owns and
 // replaces the contents of its root, and the dialog belongs to the top layer.
@@ -35,30 +49,31 @@ const dialog = createCardDialog(document.body, {
   onSave(card: Card) {
     wallet = store.saveCard(card);
     view.update(wallet);
-    cardIdToFocus = wallet.activeCardId;
+    rememberFocusAfterClose(wallet);
   },
   onDelete(cardId: string) {
     wallet = store.deleteCard(cardId);
     view.update(wallet);
-    cardIdToFocus = wallet.activeCardId;
+    rememberFocusAfterClose(wallet);
   },
   onClosed() {
     // After a save or delete the trigger was re-rendered away, so the app puts
-    // focus on the updated Card's Pill. Cancel and Esc keep native focus return.
-    if (cardIdToFocus !== undefined) {
-      view.focusCardPill(cardIdToFocus);
-      cardIdToFocus = undefined;
+    // focus on the updated Card's Pill (or the empty state's create control).
+    if (focusAfterClose.kind === 'keep-native') {
+      return;
     }
+    view.focusCardPill(focusAfterClose.kind === 'card' ? focusAfterClose.cardId : null);
+    focusAfterClose = { kind: 'keep-native' };
   },
 });
 
-// ticket #6: Copy Payload and Share, and the polite live region they report through.
+// Copy Payload and Share report their result through one polite live region.
 const toast = createToast(document.body);
 const cardActions = createCardActions(toast);
 
-// --- ticket #7: Backup export/import and corrupt-state recovery -----------------
-// The Backup workflow is DOM-free at its seam (the store's injected Storage); this
-// wiring only supplies the download sink and keeps the main view in step.
+// Backup export/import and corrupt-state recovery. The Backup workflow is
+// DOM-free at its seam (the store's injected Storage); this wiring only supplies
+// the download sink and keeps the main view in step.
 const backup = new WalletBackup(store, downloadBackupFile);
 const backupDialog = createBackupDialog(document.body, {
   onExport: () => backup.exportWallet(),
@@ -75,7 +90,6 @@ const corruptRecovery = store.takeCorruptRecovery();
 if (corruptRecovery !== null) {
   createRecoveryBanner(document.body, () => backup.downloadCorrupt(corruptRecovery));
 }
-// ---------------------------------------------------------------------------------
 
 const view = renderMainView(root, wallet, {
   onSelectCard(cardId) {
@@ -88,7 +102,7 @@ const view = renderMainView(root, wallet, {
   onEditCard(card) {
     dialog.openEdit(card);
   },
-  // ticket #6: Copy and Share act on the same Card the QR Panel is showing.
+  // Copy and Share act on the same Card the QR Panel is showing.
   onCopyPayload(card) {
     void cardActions.copyPayload(card);
   },
@@ -100,6 +114,6 @@ const view = renderMainView(root, wallet, {
   },
 });
 
-// --- ticket #8: offline shell, persistent storage, and wake lock ---
+// Boot the offline shell: persistent storage, the wake lock, and the service
+// worker with its update notice.
 startAppShell();
-// --- end ticket #8 ---

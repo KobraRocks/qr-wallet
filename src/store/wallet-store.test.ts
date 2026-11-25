@@ -225,6 +225,10 @@ describe('WalletStore corrupt recovery', () => {
       'an unparseable Link URL',
       { version: 1, cards: [linkCard('bad-link', 'not a url')], activeCardId: null },
     ],
+    [
+      'a whitespace-only Text Payload',
+      { version: 1, cards: [textCard('blank-text', '  \n\t ')], activeCardId: null },
+    ],
   ];
 
   it.each(invalidStoredWallets)(
@@ -318,6 +322,14 @@ describe('WalletStore validation on save', () => {
     );
   });
 
+  it('rejects a Text Card whose text is only whitespace', () => {
+    const store = new WalletStore(new InMemoryStorage());
+
+    expect(() => store.save(walletWith([textCard('blank-text', '  \n\t ')]))).toThrow(
+      WalletValidationError,
+    );
+  });
+
   it('surfaces storage write failures instead of discarding them', () => {
     const store = new WalletStore(new FailingStorage());
 
@@ -327,7 +339,7 @@ describe('WalletStore validation on save', () => {
 });
 
 describe('WalletStore normalization on save', () => {
-  it('normalizes Link urls and Visit Card websites', () => {
+  it('normalizes Link URLs and Visit Card websites', () => {
     const storage = new InMemoryStorage();
     const store = new WalletStore(storage);
     const visit = visitCard('visit-1', { website: 'example.com/contact' });

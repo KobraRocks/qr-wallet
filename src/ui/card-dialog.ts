@@ -1,4 +1,11 @@
-import { createCardId, MAX_LABEL_LENGTH, type Card, type CardKind } from '../domain/card';
+import {
+  CARD_KIND_NAMES,
+  CARD_KINDS,
+  createCardId,
+  MAX_LABEL_LENGTH,
+  type Card,
+  type CardKind,
+} from '../domain/card';
 import {
   type CardDraft,
   DEFAULT_NEW_CARD_KIND,
@@ -11,16 +18,7 @@ import {
   type VisitCardDraft,
 } from '../domain/card-draft';
 import type { Wallet } from '../domain/wallet';
-
-/** The human name of each Card Kind, used for the dialog title and the kind switcher. */
-const KIND_NAME = {
-  visit: 'Visit Card',
-  link: 'Link',
-  text: 'Text',
-} satisfies Record<CardKind, string>;
-
-/** The Card Kinds in the order the kind switcher offers them. */
-const KINDS: readonly CardKind[] = ['visit', 'link', 'text'];
+import { createButton, errorMessage } from './dom';
 
 /** Callbacks the dialog raises; the app owns the Wallet store and the main view. */
 export interface CardDialogHandlers {
@@ -114,14 +112,6 @@ function createField(options: FieldOptions): FormField {
   };
 }
 
-function createButton(text: string, className: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = className;
-  button.textContent = text;
-  return button;
-}
-
 /**
  * The kind switcher: a native radio group labeled Visit Card / Link / Text.
  * Native radios bring the group label, roving focus, and arrow-key selection
@@ -136,13 +126,13 @@ function createKindSwitcher(): {
 
   const legend = document.createElement('legend');
   legend.className = 'card-dialog__kind-legend';
-  legend.textContent = 'Card kind';
+  legend.textContent = 'Card Kind';
 
   const options = document.createElement('div');
   options.className = 'card-dialog__kind-options';
 
   const radios = new Map<CardKind, HTMLInputElement>();
-  for (const kind of KINDS) {
+  for (const kind of CARD_KINDS) {
     const option = document.createElement('label');
     option.className = 'card-dialog__kind-option';
 
@@ -154,7 +144,7 @@ function createKindSwitcher(): {
 
     const name = document.createElement('span');
     name.className = 'card-dialog__kind-name';
-    name.textContent = KIND_NAME[kind];
+    name.textContent = CARD_KIND_NAMES[kind];
 
     option.append(radio, name);
     options.append(option);
@@ -163,11 +153,6 @@ function createKindSwitcher(): {
 
   element.append(legend, options);
   return { element, radios };
-}
-
-/** A short, human message for a store or validation failure thrown during Save/Delete. */
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'The Wallet could not be updated.';
 }
 
 /**
@@ -353,6 +338,9 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
   /** Edits an existing Card; null while creating a new one. */
   let editingCard: Card | null = null;
 
+  /** Labels already in the Wallet while a new Card is created; null when editing. */
+  let newCardLabels: readonly string[] | null = null;
+
   /**
    * The open draft. It carries the values of all three Card Kinds, so switching
    * kind keeps the drafts for the other kinds until the dialog closes.
@@ -486,7 +474,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     if (radio !== undefined) {
       radio.checked = true;
     }
-    title.textContent = `${editingCard === null ? 'New' : 'Edit'} ${KIND_NAME[kind]}`;
+    title.textContent = `${editingCard === null ? 'New' : 'Edit'} ${CARD_KIND_NAMES[kind]}`;
   }
 
   /** Switches the selected Card Kind without losing any kind's draft values. */
@@ -494,7 +482,13 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     if (currentDraft === null) {
       return;
     }
-    currentDraft = switchDraftKind(readDraft(), kind);
+    currentDraft = switchDraftKind(readDraft(), kind, {
+      // A new Card's auto-generated label follows its kind; a saved Card keeps
+      // the label the owner already sees in its Pill.
+      newCard: editingCard === null,
+      existingLabels: newCardLabels ?? [],
+    });
+    labelField.input.value = currentDraft.label;
     applyKind(kind);
     clearErrors();
   }
@@ -513,7 +507,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     labelField.input.focus();
   }
 
-  for (const kind of KINDS) {
+  for (const kind of CARD_KINDS) {
     const radio = kindSwitcher.radios.get(kind);
     if (radio === undefined) {
       continue;
@@ -542,7 +536,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     try {
       handlers.onSave(result.card);
     } catch (error) {
-      setFormError(errorMessage(error));
+      setFormError(errorMessage(error, 'The Wallet could not be updated.'));
       return;
     }
     // Closing after a successful save lets the app re-render first; the app
@@ -565,7 +559,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     try {
       handlers.onDelete(editingCard.id);
     } catch (error) {
-      setFormError(errorMessage(error));
+      setFormError(errorMessage(error, 'The Wallet could not be updated.'));
       return;
     }
     dialog.close();
@@ -588,15 +582,11 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
 
   return {
     openNew(wallet) {
-      open(
-        newCardDraft(
-          DEFAULT_NEW_CARD_KIND,
-          wallet.cards.map((card) => card.label),
-        ),
-        null,
-      );
+      newCardLabels = wallet.cards.map((card) => card.label);
+      open(newCardDraft(DEFAULT_NEW_CARD_KIND, newCardLabels), null);
     },
     openEdit(card) {
+      newCardLabels = null;
       open(draftFromCard(card), card);
     },
   };

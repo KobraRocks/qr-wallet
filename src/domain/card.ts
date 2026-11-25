@@ -1,12 +1,21 @@
-/** The payload format a card carries. */
+/** The Payload format a Card carries. */
 export type CardKind = 'visit' | 'link' | 'text';
 
 /** The longest allowed Card label, in characters. */
 export const MAX_LABEL_LENGTH = 40;
 
-/** The fields a Visit Card carries; the vCard serializer derives its Payload. */
-export interface VisitCardSource {
-  readonly kind: 'visit';
+/** The canonical human name of each Card Kind; also a new Card's default label. */
+export const CARD_KIND_NAMES: Readonly<Record<CardKind, string>> = {
+  visit: 'Visit Card',
+  link: 'Link',
+  text: 'Text',
+};
+
+/** The Card Kinds in the order the kind switcher offers them. */
+export const CARD_KINDS: readonly CardKind[] = ['visit', 'link', 'text'];
+
+/** The fields a Visit Card carries, independent of whether it is saved or edited. */
+export interface VisitCardFields {
   readonly firstName: string;
   readonly lastName: string;
   readonly organization: string;
@@ -16,13 +25,18 @@ export interface VisitCardSource {
   readonly website: string;
 }
 
-/** A Link card stores its normalized URL. */
+/** A Visit Card's fields; the vCard serializer derives its Payload from them. */
+export interface VisitCardSource extends VisitCardFields {
+  readonly kind: 'visit';
+}
+
+/** A Link Card stores its normalized URL. */
 export interface LinkSource {
   readonly kind: 'link';
   readonly url: string;
 }
 
-/** A Text card stores its content verbatim. */
+/** A Text Card stores its Payload verbatim. */
 export interface TextSource {
   readonly kind: 'text';
   readonly text: string;
@@ -38,11 +52,6 @@ export interface Card {
   readonly source: PayloadSource;
   /** ISO 8601 timestamp of the last edit. */
   readonly updatedAt: string;
-}
-
-/** The domain term for a card's kind, derived from its payload source. */
-export function cardKind(card: Card): CardKind {
-  return card.source.kind;
 }
 
 /** Generates a unique Card id. `crypto.randomUUID` is available in browsers and Node. */

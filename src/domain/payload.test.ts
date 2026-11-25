@@ -44,13 +44,13 @@ describe('derivePayload', () => {
     expect(payload).toBe(expected);
   });
 
-  it('uses a Link card normalized URL as its Payload', () => {
+  it('uses a Link Card’s normalized URL as its Payload', () => {
     expect(derivePayload(card({ kind: 'link', url: 'https://example.com/' }))).toBe(
       'https://example.com/',
     );
   });
 
-  it('uses Text card content verbatim as its Payload', () => {
+  it('uses a Text Card’s Payload verbatim', () => {
     expect(derivePayload(card({ kind: 'text', text: '  hello\nworld  ' }))).toBe(
       '  hello\nworld  ',
     );

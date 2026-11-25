@@ -2,6 +2,7 @@ import type { Card } from '../domain/card';
 import { derivePayload } from '../domain/payload';
 import { cardQrSvg } from '../qr/card-svg';
 import { qrSvgBlob, qrSvgFile, qrSvgFileName } from '../qr/file';
+import { downloadBlob } from './download';
 import type { Toast } from './toast';
 
 /** What a Share action produced: the share sheet, a download fallback, or a cancel. */
@@ -34,23 +35,6 @@ function writeClipboard(text: string): Promise<void> {
     return Promise.reject(new Error('The Clipboard API is unavailable.'));
   }
   return clipboard.writeText(text);
-}
-
-/** Saves a Blob under a filename with a temporary object URL, then releases it. */
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.rel = 'noopener';
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  // The click starts the download synchronously; releasing on the next tick
-  // gives slower browsers time to read the object URL without leaking it.
-  window.setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 0);
 }
 
 /** Whether this browser can share the given data as a file through the share sheet. */

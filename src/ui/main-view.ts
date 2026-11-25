@@ -1,18 +1,6 @@
-import type { Card, CardKind } from '../domain/card';
+import { CARD_KIND_NAMES, type Card } from '../domain/card';
 import { resolveActiveCardId, type Wallet } from '../domain/wallet';
 import { cardQrSvg } from '../qr/card-svg';
-
-/** The short subtitle shown under the active Card's label. */
-export function subtitleForKind(kind: CardKind): string {
-  switch (kind) {
-    case 'visit':
-      return 'Contact details';
-    case 'link':
-      return 'Link';
-    case 'text':
-      return 'Text';
-  }
-}
 
 /** Callbacks the main view raises; the app wires them to the Wallet store and dialogs. */
 export interface MainViewHandlers {
@@ -149,7 +137,7 @@ function createHeading(card: Card): HTMLElement {
 
   const subtitle = document.createElement('p');
   subtitle.className = 'wallet-view__subtitle';
-  subtitle.textContent = subtitleForKind(card.source.kind);
+  subtitle.textContent = CARD_KIND_NAMES[card.source.kind];
 
   heading.append(label, subtitle);
   return heading;
@@ -282,13 +270,15 @@ export function renderMainView(
       : null;
   }
 
-  function focusPill(cardId: string): void {
+  /** Focuses the Pill for a Card id and reports whether that Pill exists. */
+  function focusPill(cardId: string): boolean {
     for (const pill of selector.querySelectorAll<HTMLElement>('[data-card-id]')) {
       if (pill.dataset.cardId === cardId) {
         pill.focus();
-        return;
+        return true;
       }
     }
+    return false;
   }
 
   function rebuildSelector(next: Wallet): void {
@@ -342,11 +332,8 @@ export function renderMainView(
 
   /** Focus after a save or delete: the Card's Pill, or the create call to action. */
   function focusCardPill(cardId: string | null): void {
-    for (const pill of selector.querySelectorAll<HTMLElement>('[data-card-id]')) {
-      if (pill.dataset.cardId === cardId) {
-        pill.focus();
-        return;
-      }
+    if (cardId !== null && focusPill(cardId)) {
+      return;
     }
     const create = content.querySelector<HTMLElement>('.wallet-view__create');
     if (create !== null) {

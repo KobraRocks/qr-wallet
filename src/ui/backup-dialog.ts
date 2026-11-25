@@ -1,5 +1,7 @@
 import type { Wallet } from '../domain/wallet';
 import type { BackupFile } from '../store/backup';
+import { createButton, errorMessage } from './dom';
+import { downloadTextFile } from './download';
 
 /** Callbacks the Backup dialog raises; the app owns the Wallet store and the main view. */
 export interface BackupDialogHandlers {
@@ -22,35 +24,18 @@ export interface BackupDialog {
   open(): void;
 }
 
-/** A short, human message for a download or store failure. */
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'The Backup could not be completed.';
+/** `1 Card` or `2 Cards`, so the confirmation and the status line agree. */
+function cardCount(count: number): string {
+  return `${count} ${count === 1 ? 'Card' : 'Cards'}`;
 }
 
 /**
- * Downloads a file through a temporary object URL and link. This is the only
- * DOM code the Backup workflow needs; the backup module itself stays DOM-free.
+ * Downloads a Backup file through the app's shared object-URL helper. This is
+ * the only DOM code the Backup workflow needs; the backup module itself stays
+ * DOM-free.
  */
 export function downloadBackupFile(file: BackupFile): void {
-  const blob = new Blob([file.contents], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = file.filename;
-  link.rel = 'noopener';
-  link.hidden = true;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-function createButton(text: string, className: string): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = className;
-  button.textContent = text;
-  return button;
+  downloadTextFile(file, 'application/json');
 }
 
 /**
@@ -176,9 +161,7 @@ export function createBackupDialog(
     confirmation.textContent =
       count === 0
         ? 'Replace your Wallet with this empty Backup? Your current Cards will be removed.'
-        : `Replace your Wallet with this Backup of ${count} ${
-            count === 1 ? 'Card' : 'Cards'
-          }? Your current Cards will be removed.`;
+        : `Replace your Wallet with this Backup of ${cardCount(count)}? Your current Cards will be removed.`;
     actions.hidden = true;
     confirmZone.hidden = false;
     replaceButton.focus();
@@ -199,7 +182,7 @@ export function createBackupDialog(
       }
     } catch (cause) {
       if (dialog.open) {
-        showError(errorMessage(cause));
+        showError(errorMessage(cause, 'The Backup could not be completed.'));
       }
     } finally {
       importButton.disabled = false;
@@ -210,7 +193,7 @@ export function createBackupDialog(
     try {
       showStatus(`Exported ${handlers.onExport().filename}.`);
     } catch (cause) {
-      showError(errorMessage(cause));
+      showError(errorMessage(cause, 'The Backup could not be completed.'));
     }
   });
 
@@ -237,12 +220,11 @@ export function createBackupDialog(
       handlers.onConfirmImport(imported);
     } catch (cause) {
       // Keep the confirmation open so the owner can retry or walk away.
-      showError(errorMessage(cause));
+      showError(errorMessage(cause, 'The Backup could not be completed.'));
       return;
     }
-    const count = imported.cards.length;
     showActions();
-    showStatus(`Imported ${count} ${count === 1 ? 'Card' : 'Cards'}.`);
+    showStatus(`Imported ${cardCount(imported.cards.length)}.`);
     closeButton.focus();
   });
 

@@ -283,6 +283,13 @@ const rejectedImports: readonly RejectedImport[] = [
     message: /Card 1 source is missing the "text" property\./,
   },
   {
+    reason: 'a Text Card whose text is only whitespace',
+    contents: backupJson((value) => {
+      soleCard(value)['source'] = { kind: 'text', text: '  \n\t ' };
+    }),
+    message: /Card 1 is a Text Card with blank text\./,
+  },
+  {
     reason: 'a Visit Card without a first or last name',
     contents: backupJson((value) => {
       soleCard(value)['source'] = {
@@ -487,7 +494,7 @@ describe('Backup import replacement', () => {
     expect(imported.activeCardId).toBe('card-99');
   });
 
-  it('normalizes imported Link urls and Visit Card websites like a saved Card', () => {
+  it('normalizes imported Link URLs and Visit Card websites like a saved Card', () => {
     const backup = new WalletBackup(new WalletStore(new InMemoryStorage()), collectingSink().sink);
     const visit = visitCard('visit-1');
     const contents = backupJson((value) => {

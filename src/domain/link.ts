@@ -6,14 +6,36 @@ export class InvalidUrlError extends Error {
   }
 }
 
+/** An RFC 3986 scheme prefix: `https:`, `mailto:`, `sms:`, `web+app:`. */
+const SCHEME_PREFIX = /^([a-z][a-z0-9+.-]*):/i;
+
+/** A hostname that is a dotted name or `localhost`, never a scheme in practice. */
+const HOST_NAME = /^(?:localhost|(?:[a-z0-9-]+\.)+[a-z0-9-]+)$/i;
+
 /**
- * A scheme is explicit only when it is followed by `//` (`https://`, `ftp://`…),
- * or when it is one of the non-web schemes a scan can act on (`mailto:`,
- * `tel:`). Without this rule `example.com:8080` and `localhost:3000` would be
- * mistaken for opaque-scheme URLs.
+ * Whether a value names its own URL scheme.
+ *
+ * The spec rule is: an explicit scheme is preserved, otherwise `https://` is
+ * prepended, and the result must parse as a URL. RFC 3986 allows any
+ * `scheme:` prefix, so `mailto:`, `tel:`, `sms:`, `geo:`, and `web+app:` are all
+ * preserved and handed to the URL parser — as is a slashed web scheme such as
+ * `https:example.com`, which the parser canonicalizes to `https://example.com/`.
+ *
+ * The one exception is a bare `host:port`, which is not an opaque-scheme URL:
+ * `example.com:8080` and `localhost:3000` must become `https://…`. A dotted
+ * name or `localhost` before the colon is therefore always a host, and every
+ * other RFC-3986 prefix is a scheme. A single-label intranet host such as
+ * `intranet:8080` is inherently ambiguous and is read as the scheme RFC 3986
+ * says it is; typing `https://intranet:8080` keeps it a URL.
  */
 function hasExplicitScheme(value: string): boolean {
-  return /^[a-z][a-z0-9+.-]*:\/\//i.test(value) || /^(mailto|tel):/i.test(value);
+  const scheme = SCHEME_PREFIX.exec(value)?.[1];
+  if (scheme === undefined) {
+    return false;
+  }
+  // `scheme://…` is explicit even when the scheme name looks host-like.
+  const rest = value.slice(scheme.length + 1);
+  return rest.startsWith('//') || !HOST_NAME.test(scheme);
 }
 
 /**
