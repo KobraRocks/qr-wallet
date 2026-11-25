@@ -1,6 +1,9 @@
 /** The payload format a card carries. */
 export type CardKind = 'visit' | 'link' | 'text';
 
+/** The longest allowed Card label, in characters. */
+export const MAX_LABEL_LENGTH = 40;
+
 /** The fields a Visit Card carries; the vCard serializer derives its Payload. */
 export interface VisitCardSource {
   readonly kind: 'visit';

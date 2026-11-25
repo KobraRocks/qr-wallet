@@ -1,10 +1,9 @@
-import type { Card, PayloadSource } from '../domain/card';
+import { MAX_LABEL_LENGTH, type Card, type PayloadSource } from '../domain/card';
 import { InvalidUrlError, normalizeUrl } from '../domain/link';
 import { assertPayloadFits, derivePayload } from '../domain/payload';
 import { WALLET_VERSION, type Wallet } from '../domain/wallet';
 
 const MAX_CARDS = 100;
-const MAX_LABEL_LENGTH = 40;
 
 /** Raised when stored or imported state is not a valid Wallet. */
 export class WalletValidationError extends Error {
