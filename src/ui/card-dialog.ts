@@ -1,10 +1,12 @@
 import { createCardId, MAX_LABEL_LENGTH, type Card, type CardKind } from '../domain/card';
 import {
   type CardDraft,
+  DEFAULT_NEW_CARD_KIND,
   type DraftErrorKey,
   type DraftErrors,
   draftFromCard,
   newCardDraft,
+  switchDraftKind,
   validateDraft,
   type VisitCardDraft,
 } from '../domain/card-draft';
@@ -16,6 +18,9 @@ const KIND_NAME = {
   link: 'Link',
   text: 'Text',
 } satisfies Record<CardKind, string>;
+
+/** The Card Kinds in the order the kind switcher offers them. */
+const KINDS: readonly CardKind[] = ['visit', 'link', 'text'];
 
 /** Callbacks the dialog raises; the app owns the Wallet store and the main view. */
 export interface CardDialogHandlers {
@@ -32,7 +37,7 @@ export interface CardDialogHandlers {
 
 /** The mounted Card editor: one native modal dialog shared by "+ New" and Edit. */
 export interface CardDialog {
-  /** Opens the editor empty, pre-filled with a sensible default label. */
+  /** Opens the editor for a new Link Card, pre-filled with a matching default label. */
   openNew(wallet: Wallet): void;
   /** Opens the editor pre-filled with the Card's current values. */
   openEdit(card: Card): void;
@@ -43,12 +48,14 @@ interface FieldOptions {
   readonly label: string;
   readonly attributes?: Readonly<Record<string, string>>;
   readonly maxLength?: number;
+  /** Uses a textarea instead of a single-line input, for verbatim Text. */
+  readonly multiline?: boolean;
 }
 
-/** One labelled text input with its own inline error slot. */
+/** One labelled text control with its own inline error slot. */
 interface FormField {
   readonly wrapper: HTMLElement;
-  readonly input: HTMLInputElement;
+  readonly input: HTMLInputElement | HTMLTextAreaElement;
   readonly error: HTMLParagraphElement;
   setError(message: string | undefined): void;
 }
@@ -62,11 +69,18 @@ function createField(options: FieldOptions): FormField {
   label.htmlFor = options.id;
   label.textContent = options.label;
 
-  const input = document.createElement('input');
+  const input: HTMLInputElement | HTMLTextAreaElement =
+    options.multiline === true
+      ? document.createElement('textarea')
+      : document.createElement('input');
   input.id = options.id;
   input.name = options.id;
-  input.className = 'card-dialog__input';
-  input.type = 'text';
+  if (input instanceof HTMLInputElement) {
+    input.type = 'text';
+    input.className = 'card-dialog__input';
+  } else {
+    input.className = 'card-dialog__textarea';
+  }
   if (options.maxLength !== undefined) {
     input.maxLength = options.maxLength;
   }
@@ -108,6 +122,49 @@ function createButton(text: string, className: string): HTMLButtonElement {
   return button;
 }
 
+/**
+ * The kind switcher: a native radio group labeled Visit Card / Link / Text.
+ * Native radios bring the group label, roving focus, and arrow-key selection
+ * without custom keyboard handling.
+ */
+function createKindSwitcher(): {
+  readonly element: HTMLFieldSetElement;
+  readonly radios: ReadonlyMap<CardKind, HTMLInputElement>;
+} {
+  const element = document.createElement('fieldset');
+  element.className = 'card-dialog__kind-switcher';
+
+  const legend = document.createElement('legend');
+  legend.className = 'card-dialog__kind-legend';
+  legend.textContent = 'Card kind';
+
+  const options = document.createElement('div');
+  options.className = 'card-dialog__kind-options';
+
+  const radios = new Map<CardKind, HTMLInputElement>();
+  for (const kind of KINDS) {
+    const option = document.createElement('label');
+    option.className = 'card-dialog__kind-option';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'card-kind';
+    radio.value = kind;
+    radio.className = 'card-dialog__kind-radio';
+
+    const name = document.createElement('span');
+    name.className = 'card-dialog__kind-name';
+    name.textContent = KIND_NAME[kind];
+
+    option.append(radio, name);
+    options.append(option);
+    radios.set(kind, radio);
+  }
+
+  element.append(legend, options);
+  return { element, radios };
+}
+
 /** A short, human message for a store or validation failure thrown during Save/Delete. */
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'The Wallet could not be updated.';
@@ -135,6 +192,8 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
   title.className = 'card-dialog__title';
   title.id = 'card-dialog-title';
 
+  const kindSwitcher = createKindSwitcher();
+
   const fields = document.createElement('div');
   fields.className = 'card-dialog__fields';
 
@@ -142,7 +201,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     id: 'card-dialog-label',
     label: 'Label',
     maxLength: MAX_LABEL_LENGTH,
-    attributes: { autocomplete: 'off', placeholder: 'For example, Visit Card' },
+    attributes: { autocomplete: 'off', placeholder: 'For example, Website' },
   });
   const firstNameField = createField({
     id: 'card-dialog-first-name',
@@ -194,12 +253,33 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     },
   });
 
+  const linkUrlField = createField({
+    id: 'card-dialog-link-url',
+    label: 'URL',
+    attributes: {
+      type: 'url',
+      inputmode: 'url',
+      autocomplete: 'url',
+      autocapitalize: 'none',
+      autocorrect: 'off',
+      spellcheck: 'false',
+      placeholder: 'example.com',
+    },
+  });
+
+  const textField = createField({
+    id: 'card-dialog-text',
+    label: 'Text',
+    multiline: true,
+    attributes: { rows: '5', placeholder: 'For example, Open 9–5' },
+  });
+
   const nameRow = document.createElement('div');
   nameRow.className = 'card-dialog__name-row';
   nameRow.append(firstNameField.wrapper, lastNameField.wrapper);
 
-  // The Visit Card fields. Ticket #5 adds the Link and Text field groups and the
-  // kind switcher, showing the group that matches the draft's selected kind.
+  // One field group per Card Kind. The kind switcher shows exactly one group;
+  // hidden groups keep their values, so switching kind never loses a draft.
   const visitFields = document.createElement('div');
   visitFields.className = 'card-dialog__kind-fields';
   visitFields.dataset.kind = 'visit';
@@ -212,7 +292,17 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     websiteField.wrapper,
   );
 
-  fields.append(labelField.wrapper, visitFields);
+  const linkFields = document.createElement('div');
+  linkFields.className = 'card-dialog__kind-fields';
+  linkFields.dataset.kind = 'link';
+  linkFields.append(linkUrlField.wrapper);
+
+  const textFields = document.createElement('div');
+  textFields.className = 'card-dialog__kind-fields';
+  textFields.dataset.kind = 'text';
+  textFields.append(textField.wrapper);
+
+  fields.append(labelField.wrapper, visitFields, linkFields, textFields);
 
   const formError = document.createElement('p');
   formError.className = 'card-dialog__error card-dialog__form-error';
@@ -256,7 +346,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
 
   actions.append(cancelButton, saveButton);
 
-  form.append(title, fields, formError, deleteZone, actions);
+  form.append(title, kindSwitcher.element, fields, formError, deleteZone, actions);
   dialog.append(form);
   host.append(dialog);
 
@@ -264,9 +354,8 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
   let editingCard: Card | null = null;
 
   /**
-   * The draft the dialog opened with. Until ticket #5 adds the Link and Text
-   * fields, a Link or Text Card can still be renamed and deleted here: only the
-   * Label is editable and the stored payload source is carried through unchanged.
+   * The open draft. It carries the values of all three Card Kinds, so switching
+   * kind keeps the drafts for the other kinds until the dialog closes.
    */
   let currentDraft: CardDraft | null = null;
 
@@ -279,12 +368,16 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     phoneField,
     emailField,
     websiteField,
+    linkUrlField,
+    textField,
   ];
 
   /** The fields that can show a specific draft error inline. */
   const errorFields: Partial<Record<DraftErrorKey, FormField>> = {
     label: labelField,
     website: websiteField,
+    url: linkUrlField,
+    text: textField,
   };
 
   function clearErrors(): void {
@@ -352,6 +445,8 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     phoneField.input.value = draft.visit.phone;
     emailField.input.value = draft.visit.email;
     websiteField.input.value = draft.visit.website;
+    linkUrlField.input.value = draft.linkUrl;
+    textField.input.value = draft.text;
   }
 
   function readVisitFields(): VisitCardDraft {
@@ -367,16 +462,41 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
   }
 
   /**
-   * Reads the form into a draft. The draft's kind and its non-Visit fields come
-   * from the open draft; ticket #5 makes the kind switcher select them instead.
+   * Reads every kind's fields off the form into the draft, so switching kind
+   * later restores exactly what was typed. Validation reads the selected kind.
    */
   function readDraft(): CardDraft {
-    const current = currentDraft ?? newCardDraft('visit');
+    const current = currentDraft ?? newCardDraft(DEFAULT_NEW_CARD_KIND);
     return {
       ...current,
       label: labelField.input.value,
-      visit: current.kind === 'visit' ? readVisitFields() : current.visit,
+      visit: readVisitFields(),
+      linkUrl: linkUrlField.input.value,
+      text: textField.input.value,
     };
+  }
+
+  /** Shows the selected kind's fields and keeps the switcher and title in step. */
+  function applyKind(kind: CardKind): void {
+    visitFields.hidden = kind !== 'visit';
+    linkFields.hidden = kind !== 'link';
+    textFields.hidden = kind !== 'text';
+
+    const radio = kindSwitcher.radios.get(kind);
+    if (radio !== undefined) {
+      radio.checked = true;
+    }
+    title.textContent = `${editingCard === null ? 'New' : 'Edit'} ${KIND_NAME[kind]}`;
+  }
+
+  /** Switches the selected Card Kind without losing any kind's draft values. */
+  function selectKind(kind: CardKind): void {
+    if (currentDraft === null) {
+      return;
+    }
+    currentDraft = switchDraftKind(readDraft(), kind);
+    applyKind(kind);
+    clearErrors();
   }
 
   function open(draft: CardDraft, existing: Card | null): void {
@@ -385,13 +505,24 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     populate(draft);
     clearErrors();
     resetDelete();
-    visitFields.hidden = draft.kind !== 'visit';
+    applyKind(draft.kind);
     deleteZone.hidden = existing === null;
-    title.textContent = `${existing === null ? 'New' : 'Edit'} ${KIND_NAME[draft.kind]}`;
     if (!dialog.open) {
       dialog.showModal();
     }
     labelField.input.focus();
+  }
+
+  for (const kind of KINDS) {
+    const radio = kindSwitcher.radios.get(kind);
+    if (radio === undefined) {
+      continue;
+    }
+    radio.addEventListener('change', () => {
+      if (radio.checked) {
+        selectKind(kind);
+      }
+    });
   }
 
   form.addEventListener('submit', (event) => {
@@ -457,10 +588,9 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
 
   return {
     openNew(wallet) {
-      // Ticket #5 changes the default kind to Link and adds the kind switcher.
       open(
         newCardDraft(
-          'visit',
+          DEFAULT_NEW_CARD_KIND,
           wallet.cards.map((card) => card.label),
         ),
         null,
