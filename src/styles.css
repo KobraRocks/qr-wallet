@@ -1,0 +1,122 @@
+:root {
+  color-scheme: light dark;
+  --shell-bg: #f4f4f5;
+  --shell-fg: #18181b;
+  --shell-muted: #52525b;
+  --panel-radius: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --shell-bg: #18181b;
+    --shell-fg: #fafafa;
+    --shell-muted: #a1a1aa;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--shell-bg);
+  color: var(--shell-fg);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+#app {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.wallet-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: max(1.5rem, env(safe-area-inset-top));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.wallet-view__heading {
+  text-align: center;
+}
+
+.wallet-view__label {
+  margin: 0;
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2rem);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+.wallet-view__subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--shell-muted);
+  font-size: 0.95rem;
+}
+
+.wallet-view__empty {
+  color: var(--shell-muted);
+  font-size: 1rem;
+}
+
+/*
+ * The QR Panel is a pure white surface holding a pure black QR code: it never
+ * follows the light/dark preference, and the SVG carries no colours of its own.
+ * Sizing comes from `width` alone; the SVG is never scaled by the library.
+ */
+.qr-panel {
+  display: grid;
+  place-items: center;
+  width: min(78vw, 340px);
+  aspect-ratio: 1;
+  padding: 16px;
+  border-radius: var(--panel-radius);
+  background: #fff;
+  color: #000;
+}
+
+.qr-panel__code {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.qr-panel__code svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: #000;
+}
