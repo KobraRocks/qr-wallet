@@ -353,6 +353,9 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
   /** Edits an existing Card; null while creating a new one. */
   let editingCard: Card | null = null;
 
+  /** Labels already in the Wallet while a new Card is created; null when editing. */
+  let newCardLabels: readonly string[] | null = null;
+
   /**
    * The open draft. It carries the values of all three Card Kinds, so switching
    * kind keeps the drafts for the other kinds until the dialog closes.
@@ -494,7 +497,13 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
     if (currentDraft === null) {
       return;
     }
-    currentDraft = switchDraftKind(readDraft(), kind);
+    currentDraft = switchDraftKind(readDraft(), kind, {
+      // A new Card's auto-generated label follows its kind; a saved Card keeps
+      // the label the owner already sees in its Pill.
+      newCard: editingCard === null,
+      existingLabels: newCardLabels ?? [],
+    });
+    labelField.input.value = currentDraft.label;
     applyKind(kind);
     clearErrors();
   }
@@ -588,15 +597,11 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
 
   return {
     openNew(wallet) {
-      open(
-        newCardDraft(
-          DEFAULT_NEW_CARD_KIND,
-          wallet.cards.map((card) => card.label),
-        ),
-        null,
-      );
+      newCardLabels = wallet.cards.map((card) => card.label);
+      open(newCardDraft(DEFAULT_NEW_CARD_KIND, newCardLabels), null);
     },
     openEdit(card) {
+      newCardLabels = null;
       open(draftFromCard(card), card);
     },
   };

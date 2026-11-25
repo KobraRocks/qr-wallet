@@ -165,6 +165,53 @@ describe('switchDraftKind', () => {
   });
 });
 
+describe('switchDraftKind on a new Card’s default label', () => {
+  it('moves an untouched default label to the new Card Kind’s default', () => {
+    const asVisit = switchDraftKind(newCardDraft('link'), 'visit', { newCard: true });
+
+    expect(asVisit.kind).toBe('visit');
+    expect(asVisit.label).toBe('Visit Card');
+
+    const asText = switchDraftKind(asVisit, 'text', { newCard: true });
+
+    expect(asText.label).toBe('Text');
+
+    const backToLink = switchDraftKind(asText, 'link', { newCard: true });
+
+    expect(backToLink.label).toBe('Link');
+  });
+
+  it('keeps the new default label distinct from labels the Wallet already holds', () => {
+    const existingLabels = ['Visit Card', 'Link'];
+    const linkDraft = newCardDraft('link', existingLabels);
+
+    const asVisit = switchDraftKind(linkDraft, 'visit', {
+      newCard: true,
+      existingLabels,
+    });
+
+    expect(linkDraft.label).toBe('Link 2');
+    expect(asVisit.label).toBe('Visit Card 2');
+  });
+
+  it('never overwrites a label the owner typed', () => {
+    const typed: CardDraft = { ...newCardDraft('link'), label: 'My website' };
+
+    const asText = switchDraftKind(typed, 'text', { newCard: true });
+
+    expect(asText.label).toBe('My website');
+  });
+
+  it('leaves an existing Card’s label alone when its kind changes', () => {
+    const saved = savedVisitCard();
+
+    const asLink = switchDraftKind(draftFromCard(saved), 'link');
+
+    expect(asLink.kind).toBe('link');
+    expect(asLink.label).toBe('Ada');
+  });
+});
+
 describe('draftFromCard', () => {
   it('pre-fills every Visit Card field from the saved Card', () => {
     const card = savedVisitCard({
