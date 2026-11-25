@@ -537,6 +537,40 @@ body {
   }
 }
 
+/* ticket #6: the polite toast live region for Copy Payload and Share feedback. */
+.toast {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  left: max(1rem, env(safe-area-inset-left));
+  z-index: 10;
+  width: fit-content;
+  max-width: min(26rem, calc(100% - 2rem));
+  margin-inline: auto;
+  padding: 0.65rem 1.1rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--pill-active-bg);
+  color: var(--pill-active-fg);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: center;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  pointer-events: none;
+}
+
+/* An empty toast keeps its live region mounted but disappears from the screen. */
+.toast:empty {
+  display: none;
+}
+
+.toast--error {
+  border-color: var(--danger);
+  background: var(--dialog-bg);
+  color: var(--danger);
+}
+
 /* ------------------------------------------------------------------------- */
 /* ticket #7: Backup dialog, corrupt-state recovery banner, footer gear       */
 /* ------------------------------------------------------------------------- */

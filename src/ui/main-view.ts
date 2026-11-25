@@ -1,7 +1,6 @@
 import type { Card, CardKind } from '../domain/card';
-import { derivePayload } from '../domain/payload';
 import { resolveActiveCardId, type Wallet } from '../domain/wallet';
-import { renderQrSvg } from '../qr/render';
+import { cardQrSvg } from '../qr/card-svg';
 
 /** The short subtitle shown under the active Card's label. */
 export function subtitleForKind(kind: CardKind): string {
@@ -26,6 +25,10 @@ export interface MainViewHandlers {
   onNewCard(): void;
   /** Opens the editor pre-filled with the given Card. */
   onEditCard(card: Card): void;
+  /** Copies the given Card's exact Payload and reports the result. */
+  onCopyPayload(card: Card): void;
+  /** Shares the given Card's QR SVG, or downloads it when sharing is unavailable. */
+  onShareCard(card: Card): void;
   /** Opens the Backup dialog from the footer gear. */
   onOpenBackup(): void;
 }
@@ -164,9 +167,10 @@ function createQrPanel(card: Card): HTMLElement {
   const code = document.createElement('div');
   code.className = 'qr-panel__code';
 
-  // renderQrSvg guards the markup before it reaches innerHTML; the SVG is a bare
-  // `<svg viewBox>` with one `<path>` and never contains the Payload.
-  code.innerHTML = renderQrSvg(derivePayload(card));
+  // cardQrSvg guards the markup before it reaches innerHTML; the SVG is a bare
+  // `<svg viewBox>` with one `<path>` and never contains the Payload. Share
+  // writes this same markup to its file, so both surfaces show the same code.
+  code.innerHTML = cardQrSvg(card);
 
   const svg = code.querySelector('svg');
   if (svg !== null) {
@@ -179,8 +183,8 @@ function createQrPanel(card: Card): HTMLElement {
 }
 
 /**
- * The active Card's action row. Edit is the only action this ticket adds; Copy
- * Payload and Share from ticket #6 belong beside it in the same row.
+ * The active Card's action row: Edit, Copy Payload, and Share. Edit opens the
+ * editor; Copy and Share act on the same Card the QR Panel is showing.
  */
 function createActions(card: Card, handlers: MainViewHandlers): HTMLElement {
   const actions = document.createElement('div');
@@ -196,7 +200,24 @@ function createActions(card: Card, handlers: MainViewHandlers): HTMLElement {
   edit.addEventListener('click', () => {
     handlers.onEditCard(card);
   });
-  actions.append(edit);
+
+  const copy = document.createElement('button');
+  copy.type = 'button';
+  copy.className = 'wallet-view__action';
+  copy.textContent = 'Copy Payload';
+  copy.addEventListener('click', () => {
+    handlers.onCopyPayload(card);
+  });
+
+  const share = document.createElement('button');
+  share.type = 'button';
+  share.className = 'wallet-view__action';
+  share.textContent = 'Share';
+  share.addEventListener('click', () => {
+    handlers.onShareCard(card);
+  });
+
+  actions.append(edit, copy, share);
 
   return actions;
 }
