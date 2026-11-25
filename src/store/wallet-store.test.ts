@@ -345,3 +345,121 @@ describe('WalletStore normalization on save', () => {
     expect(new WalletStore(storage).load()).toEqual(saved);
   });
 });
+
+describe('WalletStore saving a Card', () => {
+  it('adds a new Card at the end, makes it active, and persists both', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    const seeded = store.load();
+    const card = visitCard('new-card', { firstName: 'Grace', lastName: 'Hopper' });
+
+    const saved = store.saveCard(card);
+
+    expect(saved.cards.map((candidate) => candidate.id)).toEqual([
+      ...seeded.cards.map((candidate) => candidate.id),
+      card.id,
+    ]);
+    expect(saved.activeCardId).toBe(card.id);
+    expect(storedActiveId(storage)).toBe(card.id);
+    expect(new WalletStore(storage).load()).toEqual(saved);
+  });
+
+  it('replaces an existing Card in place and keeps it active', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    const seeded = store.load();
+    const target = seeded.cards[1];
+    if (target === undefined) {
+      throw new Error('expected Seed Cards');
+    }
+    const edited: Card = { ...target, label: 'Renamed' };
+
+    const saved = store.saveCard(edited);
+
+    expect(saved.cards).toHaveLength(seeded.cards.length);
+    expect(saved.cards.map((candidate) => candidate.id)).toEqual(
+      seeded.cards.map((candidate) => candidate.id),
+    );
+    expect(saved.cards[1]?.label).toBe('Renamed');
+    expect(saved.activeCardId).toBe(edited.id);
+    expect(new WalletStore(storage).load().cards[1]?.label).toBe('Renamed');
+  });
+
+  it('rejects a Card that cannot be saved and leaves the stored Wallet untouched', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    store.load();
+    const rawBefore = storage.getItem(WALLET_KEY);
+
+    expect(() =>
+      store.saveCard({ ...linkCard('invalid'), label: 'x'.repeat(41) }),
+    ).toThrow(WalletValidationError);
+    expect(storage.getItem(WALLET_KEY)).toBe(rawBefore);
+  });
+});
+
+describe('WalletStore deleting a Card', () => {
+  it('removes a non-active Card and keeps the active Card', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    const seeded = store.load();
+    const [activeCard, second] = seeded.cards;
+    if (activeCard === undefined || second === undefined) {
+      throw new Error('expected Seed Cards');
+    }
+
+    const saved = store.deleteCard(second.id);
+
+    expect(saved.cards.map((candidate) => candidate.id)).toEqual(
+      seeded.cards.filter((candidate) => candidate.id !== second.id).map((candidate) => candidate.id),
+    );
+    expect(saved.activeCardId).toBe(activeCard.id);
+    expect(storedActiveId(storage)).toBe(activeCard.id);
+    expect(new WalletStore(storage).load()).toEqual(saved);
+  });
+
+  it('activates the first remaining Card when the active Card is deleted', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    const seeded = store.load();
+    const [first, second] = seeded.cards;
+    if (first === undefined || second === undefined) {
+      throw new Error('expected Seed Cards');
+    }
+
+    const saved = store.deleteCard(first.id);
+
+    expect(saved.activeCardId).toBe(second.id);
+    expect(storedActiveId(storage)).toBe(second.id);
+  });
+
+  it('deleting the last Card leaves a clean empty Wallet that is never re-seeded', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    const [only] = store.load().cards;
+    if (only === undefined) {
+      throw new Error('expected a Seed Card');
+    }
+    store.save({ version: 1, cards: [only], activeCardId: only.id });
+
+    const saved = store.deleteCard(only.id);
+
+    expect(saved.cards).toEqual([]);
+    expect(saved.activeCardId).toBeNull();
+    expect(activeCard(saved)).toBeNull();
+    expect(storedActiveId(storage)).toBeNull();
+    // A later launch reads the stored empty Wallet rather than re-seeding it.
+    expect(new WalletStore(storage).load()).toEqual({ version: 1, cards: [], activeCardId: null });
+    expect(storage.getItem(CORRUPT_WALLET_KEY)).toBeNull();
+  });
+
+  it('rejects deleting an id that is not in the Wallet without touching storage', () => {
+    const storage = new InMemoryStorage();
+    const store = new WalletStore(storage);
+    store.load();
+    const rawBefore = storage.getItem(WALLET_KEY);
+
+    expect(() => store.deleteCard('missing-card')).toThrow(WalletValidationError);
+    expect(storage.getItem(WALLET_KEY)).toBe(rawBefore);
+  });
+});
