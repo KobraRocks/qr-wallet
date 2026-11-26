@@ -52,6 +52,14 @@ _Avoid_: QR card, code card
 The vertical list of every Card in the Wallet, opened from the main view, that switches the displayed Card.
 _Avoid_: Drawer, sidebar, tabs, Pills
 
+**Pager**:
+The top bar control that steps to the previous or next Card and shows the position in the Wallet.
+_Avoid_: Arrows, carousel, swipe
+
+**Dock**:
+The floating row of actions for the active Card in the main view: Edit, Copy Payload, and Share.
+_Avoid_: Toolbar, action bar
+
 **Seed Cards**:
 The three placeholder cards created on first launch only: Visit Card, Website, Sales Deck.
 _Avoid_: Defaults, samples, examples
@@ -59,3 +67,7 @@ _Avoid_: Defaults, samples, examples
 **Backup**:
 A portable copy of the complete wallet, used to move cards to another device.
 _Avoid_: Sync, cloud backup, vault
+
+**Private Backup**:
+The sheet, opened from the Card Menu footer, that exports and imports a Backup.
+_Avoid_: Vault, cloud backup

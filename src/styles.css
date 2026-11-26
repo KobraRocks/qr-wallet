@@ -4,7 +4,7 @@
  * The contract is docs/design/design.md. Rules that are not negotiable here:
  *   - one dark theme, no prefers-color-scheme colour branches;
  *   - the QR Panel is flat alabaster, square, and never overlaid;
- *   - colour, spacing, radius, and type come from the tokens in :root.
+ *   - every colour, spacing, radius, blur, and type value comes from :root.
  * Native CSS nesting only; declarations come before nested rules (Safari 16.5).
  */
 
@@ -19,6 +19,7 @@
 :root {
   color-scheme: dark;
 
+  /* Colour. */
   --canvas: #070709;
   --surface: #121316;
   --surface-raised: #17181c;
@@ -29,20 +30,131 @@
   --ink: #f4f1ea;
   --ink-muted: #a9a49b;
   --ink-faint: #8a857d;
+  --ink-disabled: rgb(138 133 125 / 0.35);
   --danger: #d46a6a;
   --danger-edge: rgb(212 106 106 / 0.55);
   --focus-ring: #e2cfa8;
   --focus-glow: rgb(200 176 138 / 0.28);
+  --on-accent: #141316;
+  --dock-tint: rgb(18 19 22 / 0.72);
+  --dock-solid: #1b1c21;
+  --backdrop: rgb(3 3 4 / 0.72);
+  --wash: rgb(255 255 255 / 0.04);
+  --wash-strong: rgb(255 255 255 / 0.05);
+  --accent-wash: rgb(200 176 138 / 0.08);
+  --accent-wash-strong: rgb(200 176 138 / 0.12);
+  --dot-glow: rgb(226 207 168 / 0.6);
 
+  /* Composite surfaces and shadows: no component rule repeats these values. */
+  --card-surface:
+    radial-gradient(120% 80% at 50% 0%, rgb(255 255 255 / 0.05) 0%, transparent 60%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.02) 0%, transparent 40%), var(--surface);
+  --primary-fill: linear-gradient(135deg, var(--accent-bright), var(--accent));
+  --card-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.04),
+    0 18px 40px rgb(0 0 0 / 0.45);
+  --dock-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.05),
+    0 14px 30px rgb(0 0 0 / 0.45);
+  --focus-halo: 0 0 18px var(--focus-glow);
+  --input-halo: 0 0 22px var(--focus-glow);
+  --dot-shadow: 0 0 10px var(--dot-glow);
+  --shadow-sheet: 0 30px 70px rgb(0 0 0 / 0.6);
+  --shadow-toast: 0 16px 40px rgb(0 0 0 / 0.5);
+  --shadow-banner: 0 20px 50px rgb(0 0 0 / 0.5);
+
+  /* Radius. */
   --radius-card: 20px;
   --radius-sheet: 24px;
   --radius-field: 12px;
+  --radius-row: 14px;
+  --radius-confirm: 16px;
+  --radius-corner: 4px;
+  --radius-pill: 999px;
+  --radius-round: 50%;
+
+  /* Spacing. */
   --gutter: 16px;
+  --space-1: 1px;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-18: 18px;
+  --space-20: 20px;
+  --space-22: 22px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-40: 40px;
+
+  /* Sizing. */
+  --target-size: 44px;
+  --target-size-sm: 40px;
+  --dock-action-size: 52px;
+  --row-size: 56px;
+  --field-size: 48px;
+  --textarea-size: 120px;
+  --glyph-size: 54px;
+  --icon-size: 22px;
+  --icon-size-sm: 20px;
+  --dot-size: 7px;
+  --dot-size-sm: 5px;
+  --bracket-size: 16px;
+  --pager-count-width: 4.5rem;
+  --menu-width: 420px;
+  --editor-width: 480px;
+  --backup-width: 380px;
+  --toast-max-inline: min(92vw, 420px);
+  --menu-max-block: min(78dvh, 640px);
+  --sheet-max-block: 92dvh;
+  --toast-lift: 104px;
+
+  /* Line and blur. */
+  --hairline-width: 1px;
+  --bracket-width: 1.5px;
+  --focus-width: 2px;
+  --focus-offset: 2px;
+  --focus-offset-tight: 1px;
+  --dock-blur: 10px;
+  --icon-stroke: 1.8;
+  --glyph-stroke: 1.3;
+
+  /* Type scale and tracking. */
+  --type-display: clamp(2rem, 9vw, 2.75rem);
+  --type-title: 1.9rem;
+  --type-heading: 1.8rem;
+  --type-glyph: 1.7rem;
+  --type-body: 1rem;
+  --type-body-sm: 0.95rem;
+  --type-control: 0.98rem;
+  --type-note: 0.9rem;
+  --type-meta: 0.88rem;
+  --type-meta-sm: 0.85rem;
+  --type-caption: 0.82rem;
+  --type-pager: 0.8rem;
+  --type-dock: 0.78rem;
+  --type-label: 0.68rem;
+  --type-wordmark: 0.62rem;
+  --tracking-wordmark: 0.32em;
+  --tracking-label: 0.12em;
+  --tracking-field: 0.14em;
+  --tracking-subtitle: 0.16em;
+  --tracking-pager: 0.08em;
+  --tracking-dock: 0.04em;
+  --tracking-tight: -0.01em;
+
+  /* Motion. The card swap is the only keyframe animation in the app. */
+  --motion-press: 140ms;
+  --motion-swap: 160ms;
+  --motion-reduced: 0.01ms;
+  --swap-slide: 8px;
 
   --display: 'Cormorant Garamond', 'Noto Serif', Georgia, 'Times New Roman', serif;
   --ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-
-  --qr-max: calc(100dvh - 20rem);
 }
 
 *,
@@ -67,7 +179,7 @@ body {
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 1rem;
+  font-size: var(--type-body);
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
@@ -85,23 +197,32 @@ button {
   touch-action: manipulation;
 
   &:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-    box-shadow: 0 0 18px var(--focus-glow);
+    outline: var(--focus-width) solid var(--focus-ring);
+    outline-offset: var(--focus-offset);
+    box-shadow: var(--focus-halo);
   }
 }
 
+.icon,
+.backup-dialog__glyph {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .icon {
-  inline-size: 22px;
-  block-size: 22px;
+  inline-size: var(--icon-size);
+  block-size: var(--icon-size);
   display: block;
+  stroke-width: var(--icon-stroke);
 }
 
 .visually-hidden {
   position: absolute;
-  inline-size: 1px;
-  block-size: 1px;
-  margin: -1px;
+  inline-size: var(--space-1);
+  block-size: var(--space-1);
+  margin: calc(var(--space-1) * -1);
   padding: 0;
   overflow: hidden;
   clip-path: inset(50%);
@@ -130,30 +251,30 @@ button {
 .wallet-top-bar {
   grid-row: 1;
   display: grid;
-  grid-template-columns: 44px 1fr 44px;
+  grid-template-columns: var(--target-size) 1fr var(--target-size);
   align-items: center;
   gap: var(--gutter);
 
   & .wallet-top-bar__control {
-    inline-size: 44px;
-    block-size: 44px;
+    inline-size: var(--target-size);
+    block-size: var(--target-size);
     display: grid;
     place-items: center;
     padding: 0;
-    border: 1px solid transparent;
-    border-radius: 50%;
+    border: var(--hairline-width) solid transparent;
+    border-radius: var(--radius-round);
     background: transparent;
     color: var(--accent);
     cursor: pointer;
     transition:
-      color 140ms ease,
-      background-color 140ms ease,
-      border-color 140ms ease;
+      color var(--motion-press) ease,
+      background-color var(--motion-press) ease,
+      border-color var(--motion-press) ease;
 
     &:hover,
     &:active {
       color: var(--accent-bright);
-      background: rgb(255 255 255 / 0.04);
+      background: var(--wash);
       border-color: var(--hairline);
     }
   }
@@ -167,7 +288,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: var(--space-2);
   min-inline-size: 0;
 
   &[hidden] {
@@ -175,8 +296,8 @@ button {
   }
 
   & .wallet-pager__step {
-    inline-size: 44px;
-    block-size: 44px;
+    inline-size: var(--target-size);
+    block-size: var(--target-size);
     display: grid;
     place-items: center;
     padding: 0;
@@ -184,11 +305,11 @@ button {
     background: transparent;
     color: var(--ink-muted);
     cursor: pointer;
-    transition: color 140ms ease;
+    transition: color var(--motion-press) ease;
 
     & .icon {
-      inline-size: 20px;
-      block-size: 20px;
+      inline-size: var(--icon-size-sm);
+      block-size: var(--icon-size-sm);
     }
 
     &:hover:not(:disabled) {
@@ -196,23 +317,42 @@ button {
     }
 
     &:disabled {
-      color: rgb(138 133 125 / 0.35);
+      color: var(--ink-disabled);
       cursor: default;
     }
   }
 
   & .wallet-pager__count {
     margin: 0;
-    min-inline-size: 4.5rem;
+    min-inline-size: var(--pager-count-width);
     text-align: center;
     color: var(--ink-faint);
-    font-size: 0.8rem;
+    font-size: var(--type-pager);
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--tracking-pager);
   }
 }
 
 /* ------------------------------------------------------------ Card Face -- */
+
+/*
+ * The card-swap motion: 160 ms, an 8px lateral slide from the direction of
+ * travel plus a fade. It is the one deliberate animation in the view; reduced
+ * motion turns it off entirely (see the media block at the end).
+ */
+@keyframes card-swap-next {
+  from {
+    opacity: 0;
+    transform: translateX(var(--swap-slide));
+  }
+}
+
+@keyframes card-swap-previous {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--swap-slide) * -1));
+  }
+}
 
 .card-face {
   grid-row: 2;
@@ -221,63 +361,66 @@ button {
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 4px;
+  gap: var(--space-4);
   min-block-size: 0;
-  padding: 18px 16px 16px;
-  border: 1px solid var(--hairline);
+  padding: var(--space-18) var(--space-16) var(--space-16);
+  border: var(--hairline-width) solid var(--hairline);
   border-radius: var(--radius-card);
-  background:
-    radial-gradient(120% 80% at 50% 0%, rgb(255 255 255 / 0.05) 0%, transparent 60%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.02) 0%, transparent 40%),
-    var(--surface);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.04),
-    0 18px 40px rgb(0 0 0 / 0.45);
+  background: var(--card-surface);
+  box-shadow: var(--card-shadow);
 
   &[hidden] {
     display: none;
   }
 
+  &.card-face--swap-next {
+    animation: card-swap-next var(--motion-swap) ease-out;
+  }
+
+  &.card-face--swap-previous {
+    animation: card-swap-previous var(--motion-swap) ease-out;
+  }
+
   /* Four machined corners on the titanium frame. They sit in the padding band,
-     at least 10px clear of the alabaster inset, so they never enter the code's
+     at least 6px clear of the alabaster inset, so they never enter the code's
      quiet zone. */
   & .card-face__bracket {
     position: absolute;
-    inline-size: 16px;
-    block-size: 16px;
+    inline-size: var(--bracket-size);
+    block-size: var(--bracket-size);
     border: 0 solid var(--accent);
     opacity: 0.5;
 
     &[data-corner='tl'] {
-      inset-block-start: 10px;
-      inset-inline-start: 10px;
-      border-block-start-width: 1.5px;
-      border-inline-start-width: 1.5px;
-      border-start-start-radius: 4px;
+      inset-block-start: var(--space-10);
+      inset-inline-start: var(--space-10);
+      border-block-start-width: var(--bracket-width);
+      border-inline-start-width: var(--bracket-width);
+      border-start-start-radius: var(--radius-corner);
     }
 
     &[data-corner='tr'] {
-      inset-block-start: 10px;
-      inset-inline-end: 10px;
-      border-block-start-width: 1.5px;
-      border-inline-end-width: 1.5px;
-      border-start-end-radius: 4px;
+      inset-block-start: var(--space-10);
+      inset-inline-end: var(--space-10);
+      border-block-start-width: var(--bracket-width);
+      border-inline-end-width: var(--bracket-width);
+      border-start-end-radius: var(--radius-corner);
     }
 
     &[data-corner='bl'] {
-      inset-block-end: 10px;
-      inset-inline-start: 10px;
-      border-block-end-width: 1.5px;
-      border-inline-start-width: 1.5px;
-      border-end-start-radius: 4px;
+      inset-block-end: var(--space-10);
+      inset-inline-start: var(--space-10);
+      border-block-end-width: var(--bracket-width);
+      border-inline-start-width: var(--bracket-width);
+      border-end-start-radius: var(--radius-corner);
     }
 
     &[data-corner='br'] {
-      inset-block-end: 10px;
-      inset-inline-end: 10px;
-      border-block-end-width: 1.5px;
-      border-inline-end-width: 1.5px;
-      border-end-end-radius: 4px;
+      inset-block-end: var(--space-10);
+      inset-inline-end: var(--space-10);
+      border-block-end-width: var(--bracket-width);
+      border-inline-end-width: var(--bracket-width);
+      border-end-end-radius: var(--radius-corner);
     }
   }
 
@@ -285,10 +428,10 @@ button {
     margin: 0;
     max-inline-size: 100%;
     font-family: var(--display);
-    font-size: clamp(2rem, 9vw, 2.75rem);
+    font-size: var(--type-display);
     font-weight: 500;
     line-height: 1.05;
-    letter-spacing: -0.01em;
+    letter-spacing: var(--tracking-tight);
     text-align: center;
     text-wrap: balance;
     color: var(--ink);
@@ -298,19 +441,24 @@ button {
     margin: 0;
     max-inline-size: 100%;
     color: var(--ink-muted);
-    font-size: 0.68rem;
+    font-size: var(--type-label);
     font-weight: 500;
-    letter-spacing: 0.16em;
+    letter-spacing: var(--tracking-subtitle);
     text-transform: uppercase;
     text-align: center;
   }
 
+  /*
+   * The inset uses the Card Face's full inner width on every viewport. It has
+   * no height-derived cap: a viewport too short for the square inset makes the
+   * view scroll vertically instead of shrinking the code below that width.
+   */
   & .qr-panel {
-    inline-size: min(100%, var(--qr-max));
+    inline-size: 100%;
     max-inline-size: 100%;
     aspect-ratio: 1;
     display: grid;
-    margin-block-start: 10px;
+    margin-block-start: var(--space-10);
     padding: 0;
     border: 0;
     border-radius: 0;
@@ -328,15 +476,13 @@ button {
 
 .action-dock {
   grid-row: 3;
-  padding: 6px;
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
-  background: rgb(23 24 28 / 0.72);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.05),
-    0 14px 30px rgb(0 0 0 / 0.45);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  padding: var(--space-6);
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: var(--radius-pill);
+  background: var(--dock-tint);
+  box-shadow: var(--dock-shadow);
+  -webkit-backdrop-filter: blur(var(--dock-blur));
+  backdrop-filter: blur(var(--dock-blur));
 
   &[hidden] {
     display: none;
@@ -345,7 +491,7 @@ button {
   & .action-dock__list {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
+    gap: var(--space-4);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -353,43 +499,44 @@ button {
 
   & .action-dock__action {
     inline-size: 100%;
-    min-block-size: 52px;
+    min-block-size: var(--dock-action-size);
     display: grid;
     justify-items: center;
     align-content: center;
-    gap: 4px;
-    padding: 8px 4px;
+    gap: var(--space-4);
+    padding: var(--space-8) var(--space-4);
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: transparent;
     color: var(--ink);
     cursor: pointer;
     transition:
-      color 140ms ease,
-      background-color 140ms ease;
+      color var(--motion-press) ease,
+      background-color var(--motion-press) ease;
 
     & .icon {
-      inline-size: 20px;
-      block-size: 20px;
+      inline-size: var(--icon-size-sm);
+      block-size: var(--icon-size-sm);
       color: var(--accent);
     }
 
     &:hover,
     &:active {
       color: var(--accent-bright);
-      background: rgb(255 255 255 / 0.05);
+      background: var(--wash-strong);
     }
   }
 
   & .action-dock__label {
-    font-size: 0.78rem;
-    letter-spacing: 0.04em;
+    font-size: var(--type-dock);
+    letter-spacing: var(--tracking-dock);
   }
 }
 
+/* The dock keeps its legibility when the filter is unavailable. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .action-dock {
-    background: #1b1c21;
+    background: var(--dock-solid);
   }
 }
 
@@ -400,36 +547,39 @@ button {
   display: grid;
   align-content: center;
   justify-items: center;
-  gap: 20px;
+  gap: var(--space-20);
   text-align: center;
 
   &[hidden] {
     display: none;
   }
 
+  /* The UI face, not the display face: Cormorant is display-only (ADR-0004). */
   & .empty-state__message {
     margin: 0;
-    font-family: var(--display);
-    font-size: 1.8rem;
+    font-family: var(--ui);
+    font-size: var(--type-body);
+    font-weight: 500;
+    line-height: 1.4;
     color: var(--ink-muted);
   }
 
   & .empty-state__create {
-    min-block-size: 48px;
-    padding: 0 28px;
-    border: 1px solid var(--accent);
-    border-radius: 999px;
+    min-block-size: var(--field-size);
+    padding: 0 var(--space-28);
+    border: var(--hairline-width) solid var(--accent);
+    border-radius: var(--radius-pill);
     background: transparent;
     color: var(--accent-bright);
-    font-size: 1rem;
+    font-size: var(--type-body);
     cursor: pointer;
     transition:
-      background-color 140ms ease,
-      color 140ms ease;
+      background-color var(--motion-press) ease,
+      color var(--motion-press) ease;
 
     &:hover,
     &:active {
-      background: rgb(200 176 138 / 0.12);
+      background: var(--accent-wash-strong);
     }
   }
 }
@@ -437,15 +587,15 @@ button {
 /* ------------------------------------------------------------ Card Menu -- */
 
 .card-menu {
-  inline-size: min(100% - 24px, 420px);
-  max-block-size: min(78dvh, 640px);
+  inline-size: min(calc(100% - var(--space-24)), var(--menu-width));
+  max-block-size: var(--menu-max-block);
   margin: auto;
   padding: 0;
-  border: 1px solid var(--hairline);
+  border: var(--hairline-width) solid var(--hairline);
   border-radius: var(--radius-sheet);
   background: var(--surface-raised);
   color: var(--ink);
-  box-shadow: 0 30px 70px rgb(0 0 0 / 0.6);
+  box-shadow: var(--shadow-sheet);
 
   &[open] {
     display: flex;
@@ -454,24 +604,24 @@ button {
   }
 
   &::backdrop {
-    background: rgb(3 3 4 / 0.72);
+    background: var(--backdrop);
   }
 
   & .card-menu__header {
     display: grid;
     grid-template-columns: 1fr auto;
     grid-template-rows: auto auto;
-    gap: 2px 12px;
-    padding: 18px 16px 12px 20px;
-    border-block-end: 1px solid var(--hairline);
+    gap: var(--space-2) var(--space-12);
+    padding: var(--space-18) var(--space-16) var(--space-12) var(--space-20);
+    border-block-end: var(--hairline-width) solid var(--hairline);
   }
 
   & .card-menu__wordmark {
     grid-area: 1 / 1;
     margin: 0;
     color: var(--ink-faint);
-    font-size: 0.62rem;
-    letter-spacing: 0.32em;
+    font-size: var(--type-wordmark);
+    letter-spacing: var(--tracking-wordmark);
     text-transform: uppercase;
   }
 
@@ -479,7 +629,7 @@ button {
     grid-area: 2 / 1;
     margin: 0;
     font-family: var(--display);
-    font-size: 1.9rem;
+    font-size: var(--type-title);
     font-weight: 500;
     line-height: 1.1;
   }
@@ -487,22 +637,22 @@ button {
   & .card-menu__close {
     grid-area: 1 / 2 / 3 / 3;
     align-self: center;
-    inline-size: 44px;
-    block-size: 44px;
+    inline-size: var(--target-size);
+    block-size: var(--target-size);
     display: grid;
     place-items: center;
     padding: 0;
     border: 0;
-    border-radius: 50%;
+    border-radius: var(--radius-round);
     background: transparent;
     color: var(--ink-muted);
-    font-size: 1.7rem;
+    font-size: var(--type-glyph);
     line-height: 1;
     cursor: pointer;
 
     &:hover {
       color: var(--ink);
-      background: rgb(255 255 255 / 0.05);
+      background: var(--wash-strong);
     }
   }
 
@@ -510,13 +660,13 @@ button {
     min-block-size: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 12px;
+    padding: var(--space-12);
     -webkit-overflow-scrolling: touch;
   }
 
   & .card-menu__list {
     display: grid;
-    gap: 6px;
+    gap: var(--space-6);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -525,41 +675,41 @@ button {
   & .card-menu__row {
     position: relative;
     inline-size: 100%;
-    min-block-size: 56px;
+    min-block-size: var(--row-size);
     display: grid;
-    gap: 2px;
+    gap: var(--space-2);
     align-content: center;
-    padding: 10px 40px 10px 14px;
-    border: 1px solid transparent;
-    border-radius: 14px;
+    padding: var(--space-10) var(--space-40) var(--space-10) var(--space-14);
+    border: var(--hairline-width) solid transparent;
+    border-radius: var(--radius-row);
     background: transparent;
     color: var(--ink);
     text-align: start;
-    font-size: 1rem;
+    font-size: var(--type-body);
     cursor: pointer;
     transition:
-      background-color 140ms ease,
-      border-color 140ms ease;
+      background-color var(--motion-press) ease,
+      border-color var(--motion-press) ease;
 
     &:hover {
-      background: rgb(255 255 255 / 0.04);
+      background: var(--wash);
     }
 
     &.card-menu__row--active {
       border-color: var(--hairline);
-      background: rgb(200 176 138 / 0.08);
+      background: var(--accent-wash);
 
       &::after {
         content: '';
         position: absolute;
         inset-block-start: 50%;
-        inset-inline-end: 16px;
-        inline-size: 7px;
-        block-size: 7px;
-        margin-block-start: -3.5px;
-        border-radius: 50%;
+        inset-inline-end: var(--space-16);
+        inline-size: var(--dot-size);
+        block-size: var(--dot-size);
+        margin-block-start: calc(var(--dot-size) / -2);
+        border-radius: var(--radius-round);
         background: var(--accent-bright);
-        box-shadow: 0 0 10px rgb(226 207 168 / 0.6);
+        box-shadow: var(--dot-shadow);
       }
     }
   }
@@ -570,14 +720,14 @@ button {
 
   & .card-menu__kind {
     color: var(--ink-faint);
-    font-size: 0.68rem;
-    letter-spacing: 0.12em;
+    font-size: var(--type-label);
+    letter-spacing: var(--tracking-label);
     text-transform: uppercase;
   }
 
   & .card-menu__empty {
     margin: 0;
-    padding: 24px 12px;
+    padding: var(--space-24) var(--space-12);
     color: var(--ink-muted);
     text-align: center;
 
@@ -587,25 +737,25 @@ button {
   }
 
   & .card-menu__footer {
-    padding: 10px 12px 12px;
-    border-block-start: 1px solid var(--hairline);
+    padding: var(--space-10) var(--space-12) var(--space-12);
+    border-block-start: var(--hairline-width) solid var(--hairline);
   }
 
   & .card-menu__backup {
     inline-size: 100%;
-    min-block-size: 44px;
-    padding: 10px 14px;
+    min-block-size: var(--target-size);
+    padding: var(--space-10) var(--space-14);
     border: 0;
-    border-radius: 12px;
+    border-radius: var(--radius-field);
     background: transparent;
     color: var(--ink-muted);
     text-align: start;
-    font-size: 0.95rem;
+    font-size: var(--type-body-sm);
     cursor: pointer;
 
     &:hover {
       color: var(--accent-bright);
-      background: rgb(255 255 255 / 0.04);
+      background: var(--wash);
     }
   }
 }
@@ -613,25 +763,25 @@ button {
 /* --------------------------------------------------------- editor sheet -- */
 
 .card-dialog {
-  inline-size: min(100% - 20px, 480px);
-  max-block-size: 92dvh;
+  inline-size: min(calc(100% - var(--space-20)), var(--editor-width));
+  max-block-size: var(--sheet-max-block);
   margin: auto;
   padding: 0;
-  border: 1px solid var(--hairline);
+  border: var(--hairline-width) solid var(--hairline);
   border-radius: var(--radius-sheet);
   background: var(--surface-raised);
   color: var(--ink);
-  box-shadow: 0 30px 70px rgb(0 0 0 / 0.6);
+  box-shadow: var(--shadow-sheet);
 
   &::backdrop {
-    background: rgb(3 3 4 / 0.72);
+    background: var(--backdrop);
   }
 
   & .card-dialog__form {
     display: grid;
-    gap: 14px;
-    max-block-size: 92dvh;
-    padding: 18px 18px 16px;
+    gap: var(--space-14);
+    max-block-size: var(--sheet-max-block);
+    padding: var(--space-18) var(--space-18) var(--space-16);
     overflow-y: auto;
     overscroll-behavior: contain;
   }
@@ -640,34 +790,34 @@ button {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-12);
   }
 
   & .card-dialog__title {
     margin: 0;
     font-family: var(--display);
-    font-size: 1.8rem;
+    font-size: var(--type-heading);
     font-weight: 500;
     line-height: 1.1;
   }
 
   & .card-dialog__close {
-    inline-size: 44px;
-    block-size: 44px;
+    inline-size: var(--target-size);
+    block-size: var(--target-size);
     display: grid;
     place-items: center;
     padding: 0;
     border: 0;
-    border-radius: 50%;
+    border-radius: var(--radius-round);
     background: transparent;
     color: var(--ink-muted);
-    font-size: 1.7rem;
+    font-size: var(--type-glyph);
     line-height: 1;
     cursor: pointer;
 
     &:hover {
       color: var(--ink);
-      background: rgb(255 255 255 / 0.05);
+      background: var(--wash-strong);
     }
   }
 
@@ -680,38 +830,41 @@ button {
 
   & .card-dialog__kind-legend {
     padding: 0;
-    margin-block-end: 8px;
+    margin-block-end: var(--space-8);
     color: var(--ink-muted);
-    font-size: 0.68rem;
-    letter-spacing: 0.14em;
+    font-size: var(--type-label);
+    letter-spacing: var(--tracking-field);
     text-transform: uppercase;
   }
 
+  /* The repeated Card Kind options are a list; each list item holds its radio. */
   & .card-dialog__kind-options {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-    padding: 4px;
-    border: 1px solid var(--hairline);
-    border-radius: 999px;
+    gap: var(--space-4);
+    margin: 0;
+    padding: var(--space-4);
+    border: var(--hairline-width) solid var(--hairline);
+    border-radius: var(--radius-pill);
     background: var(--canvas);
+    list-style: none;
   }
 
   & .card-dialog__kind-option {
     position: relative;
-    min-block-size: 44px;
+    min-block-size: var(--target-size);
     display: grid;
     place-items: center;
-    padding: 0 6px;
-    border: 1px solid transparent;
-    border-radius: 999px;
+    padding: 0 var(--space-6);
+    border: var(--hairline-width) solid transparent;
+    border-radius: var(--radius-pill);
     color: var(--ink-muted);
-    font-size: 0.95rem;
+    font-size: var(--type-body-sm);
     cursor: pointer;
     transition:
-      color 140ms ease,
-      background-color 140ms ease,
-      border-color 140ms ease;
+      color var(--motion-press) ease,
+      background-color var(--motion-press) ease,
+      border-color var(--motion-press) ease;
 
     &:has(.card-dialog__kind-radio:checked) {
       border-color: var(--accent);
@@ -721,40 +874,40 @@ button {
       &::after {
         content: '';
         position: absolute;
-        inset-block-start: 8px;
-        inset-inline-end: 10px;
-        inline-size: 5px;
-        block-size: 5px;
-        border-radius: 50%;
+        inset-block-start: var(--space-8);
+        inset-inline-end: var(--space-10);
+        inline-size: var(--dot-size-sm);
+        block-size: var(--dot-size-sm);
+        border-radius: var(--radius-round);
         background: var(--accent-bright);
       }
     }
 
     &:has(.card-dialog__kind-radio:focus-visible) {
-      outline: 2px solid var(--focus-ring);
-      outline-offset: 2px;
+      outline: var(--focus-width) solid var(--focus-ring);
+      outline-offset: var(--focus-offset);
     }
   }
 
   & .card-dialog__kind-radio {
     position: absolute;
-    inline-size: 1px;
-    block-size: 1px;
+    inline-size: var(--space-1);
+    block-size: var(--space-1);
     opacity: 0;
     pointer-events: none;
   }
 
   & .card-dialog__kind-name {
-    font-size: 0.95rem;
+    font-size: var(--type-body-sm);
   }
 
   & .card-dialog__fields {
     display: grid;
-    gap: 12px;
+    gap: var(--space-12);
 
     & .card-dialog__kind-fields {
       display: grid;
-      gap: 12px;
+      gap: var(--space-12);
 
       &[hidden] {
         display: none;
@@ -764,32 +917,32 @@ button {
     & .card-dialog__name-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: var(--space-10);
     }
 
     & .card-dialog__field {
       display: grid;
-      gap: 6px;
+      gap: var(--space-6);
     }
 
     & .card-dialog__field-label {
       color: var(--ink-muted);
-      font-size: 0.68rem;
-      letter-spacing: 0.14em;
+      font-size: var(--type-label);
+      letter-spacing: var(--tracking-field);
       text-transform: uppercase;
     }
 
     & .card-dialog__input,
     & .card-dialog__textarea {
       inline-size: 100%;
-      min-block-size: 48px;
-      padding: 12px 14px;
-      border: 1px solid var(--hairline);
+      min-block-size: var(--field-size);
+      padding: var(--space-12) var(--space-14);
+      border: var(--hairline-width) solid var(--hairline);
       border-radius: var(--radius-field);
       background: var(--surface);
       color: var(--ink);
       font: inherit;
-      font-size: 1rem;
+      font-size: var(--type-body);
       caret-color: var(--accent-bright);
 
       &::placeholder {
@@ -797,10 +950,10 @@ button {
       }
 
       &:focus-visible {
-        outline: 2px solid var(--accent-bright);
-        outline-offset: 1px;
+        outline: var(--focus-width) solid var(--accent-bright);
+        outline-offset: var(--focus-offset-tight);
         border-color: var(--accent-bright);
-        box-shadow: 0 0 22px var(--focus-glow);
+        box-shadow: var(--input-halo);
       }
 
       &[aria-invalid='true'] {
@@ -809,7 +962,7 @@ button {
     }
 
     & .card-dialog__textarea {
-      min-block-size: 120px;
+      min-block-size: var(--textarea-size);
       resize: vertical;
     }
   }
@@ -817,24 +970,24 @@ button {
   & .card-dialog__error {
     margin: 0;
     color: var(--danger);
-    font-size: 0.82rem;
+    font-size: var(--type-caption);
   }
 
   & .card-dialog__form-error {
     margin: 0;
     color: var(--danger);
-    font-size: 0.88rem;
+    font-size: var(--type-meta);
   }
 
   & .card-dialog__delete {
     display: grid;
-    gap: 8px;
+    gap: var(--space-8);
   }
 
   & .card-dialog__delete-confirm {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: var(--space-8);
 
     &[hidden] {
       display: none;
@@ -844,26 +997,26 @@ button {
       grid-column: 1 / -1;
       margin: 0;
       color: var(--ink-muted);
-      font-size: 0.9rem;
+      font-size: var(--type-note);
     }
   }
 
   & .card-dialog__actions {
     display: grid;
     grid-template-columns: 1fr 1.2fr;
-    gap: 10px;
-    margin-block-start: 2px;
+    gap: var(--space-10);
+    margin-block-start: var(--space-2);
   }
 
   & .card-dialog__button {
-    min-block-size: 48px;
-    padding: 12px 16px;
-    border: 1px solid var(--hairline);
-    border-radius: 999px;
+    min-block-size: var(--field-size);
+    padding: var(--space-12) var(--space-16);
+    border: var(--hairline-width) solid var(--hairline);
+    border-radius: var(--radius-pill);
     background: transparent;
     color: var(--ink);
     font: inherit;
-    font-size: 0.98rem;
+    font-size: var(--type-control);
     font-weight: 600;
     cursor: pointer;
 
@@ -873,8 +1026,8 @@ button {
 
     &.card-dialog__button--primary {
       border-color: transparent;
-      background: linear-gradient(135deg, var(--accent-bright), var(--accent));
-      color: #141316;
+      background: var(--primary-fill);
+      color: var(--on-accent);
     }
 
     &.card-dialog__button--danger {
@@ -889,38 +1042,39 @@ button {
 /* ------------------------------------------------------- Private Backup -- */
 
 .backup-dialog {
-  inline-size: min(100% - 28px, 380px);
+  inline-size: min(calc(100% - var(--space-28)), var(--backup-width));
   margin: auto;
   padding: 0;
-  border: 1px solid var(--hairline);
+  border: var(--hairline-width) solid var(--hairline);
   border-radius: var(--radius-sheet);
   background: var(--surface-raised);
   color: var(--ink);
-  box-shadow: 0 30px 70px rgb(0 0 0 / 0.6);
+  box-shadow: var(--shadow-sheet);
 
   &::backdrop {
-    background: rgb(3 3 4 / 0.72);
+    background: var(--backdrop);
   }
 
   & .backup-dialog__body {
     display: grid;
     justify-items: center;
-    gap: 12px;
-    padding: 22px 20px 18px;
+    gap: var(--space-12);
+    padding: var(--space-22) var(--space-20) var(--space-18);
     text-align: center;
   }
 
   & .backup-dialog__glyph {
-    inline-size: 54px;
-    block-size: 54px;
+    inline-size: var(--glyph-size);
+    block-size: var(--glyph-size);
     color: var(--accent);
     opacity: 0.85;
+    stroke-width: var(--glyph-stroke);
   }
 
   & .backup-dialog__title {
     margin: 0;
     font-family: var(--display);
-    font-size: 1.9rem;
+    font-size: var(--type-title);
     font-weight: 500;
     line-height: 1.1;
   }
@@ -928,27 +1082,27 @@ button {
   & .backup-dialog__note {
     margin: 0;
     color: var(--ink);
-    font-size: 0.95rem;
+    font-size: var(--type-body-sm);
     line-height: 1.5;
   }
 
   & .backup-dialog__status {
     margin: 0;
     color: var(--ink-muted);
-    font-size: 0.85rem;
+    font-size: var(--type-meta-sm);
   }
 
   & .backup-dialog__error {
     margin: 0;
     color: var(--danger);
-    font-size: 0.85rem;
+    font-size: var(--type-meta-sm);
   }
 
   & .backup-dialog__actions {
     inline-size: 100%;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: var(--space-10);
 
     &[hidden] {
       display: none;
@@ -956,14 +1110,14 @@ button {
   }
 
   & .backup-dialog__button {
-    min-block-size: 48px;
-    padding: 12px 14px;
-    border: 1px solid var(--hairline);
-    border-radius: 999px;
+    min-block-size: var(--field-size);
+    padding: var(--space-12) var(--space-14);
+    border: var(--hairline-width) solid var(--hairline);
+    border-radius: var(--radius-pill);
     background: transparent;
     color: var(--ink);
     font: inherit;
-    font-size: 0.95rem;
+    font-size: var(--type-body-sm);
     font-weight: 600;
     cursor: pointer;
 
@@ -973,13 +1127,13 @@ button {
 
     &.backup-dialog__button--primary {
       border-color: transparent;
-      background: linear-gradient(135deg, var(--accent-bright), var(--accent));
-      color: #141316;
+      background: var(--primary-fill);
+      color: var(--on-accent);
     }
 
     &.backup-dialog__button--quiet {
       grid-column: 1 / -1;
-      min-block-size: 40px;
+      min-block-size: var(--target-size-sm);
       border-color: transparent;
       color: var(--ink-muted);
       font-weight: 500;
@@ -993,10 +1147,10 @@ button {
   & .backup-dialog__confirm {
     inline-size: 100%;
     display: grid;
-    gap: 10px;
-    padding: 12px;
-    border: 1px solid var(--danger-edge);
-    border-radius: 16px;
+    gap: var(--space-10);
+    padding: var(--space-12);
+    border: var(--hairline-width) solid var(--danger-edge);
+    border-radius: var(--radius-confirm);
 
     &[hidden] {
       display: none;
@@ -1006,7 +1160,7 @@ button {
   & .backup-dialog__confirm-question {
     margin: 0;
     color: var(--ink);
-    font-size: 0.9rem;
+    font-size: var(--type-note);
     line-height: 1.45;
   }
 
@@ -1020,17 +1174,17 @@ button {
 .toast {
   position: fixed;
   inset-inline-start: 50%;
-  inset-block-end: calc(env(safe-area-inset-bottom) + 104px);
+  inset-block-end: calc(env(safe-area-inset-bottom) + var(--toast-lift));
   z-index: 40;
-  max-inline-size: min(92vw, 420px);
-  padding: 10px 18px;
-  border: 1px solid var(--hairline);
-  border-radius: 999px;
+  max-inline-size: var(--toast-max-inline);
+  padding: var(--space-10) var(--space-18);
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: var(--radius-pill);
   background: var(--surface-raised);
   color: var(--ink);
-  font-size: 0.85rem;
+  font-size: var(--type-meta-sm);
   text-align: center;
-  box-shadow: 0 16px 40px rgb(0 0 0 / 0.5);
+  box-shadow: var(--shadow-toast);
   transform: translateX(-50%);
   pointer-events: none;
 
@@ -1048,45 +1202,45 @@ button {
 
 .recovery-banner {
   position: fixed;
-  inset-inline: 12px;
-  inset-block-start: max(12px, env(safe-area-inset-top));
+  inset-inline: var(--space-12);
+  inset-block-start: max(var(--space-12), env(safe-area-inset-top));
   z-index: 35;
   display: grid;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--danger-edge);
-  border-radius: 16px;
+  gap: var(--space-10);
+  padding: var(--space-14);
+  border: var(--hairline-width) solid var(--danger-edge);
+  border-radius: var(--radius-confirm);
   background: var(--surface-raised);
   color: var(--ink);
-  box-shadow: 0 20px 50px rgb(0 0 0 / 0.5);
+  box-shadow: var(--shadow-banner);
 
   & .recovery-banner__message {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: var(--type-note);
     line-height: 1.45;
   }
 
   & .recovery-banner__error {
     margin: 0;
     color: var(--danger);
-    font-size: 0.82rem;
+    font-size: var(--type-caption);
   }
 
   & .recovery-banner__actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: var(--space-8);
   }
 
   & .recovery-banner__button {
-    min-block-size: 44px;
-    padding: 10px 12px;
-    border: 1px solid var(--hairline);
-    border-radius: 999px;
+    min-block-size: var(--target-size);
+    padding: var(--space-10) var(--space-12);
+    border: var(--hairline-width) solid var(--hairline);
+    border-radius: var(--radius-pill);
     background: transparent;
     color: var(--ink);
     font: inherit;
-    font-size: 0.9rem;
+    font-size: var(--type-note);
     cursor: pointer;
 
     &:hover {
@@ -1104,34 +1258,34 @@ button {
 
 .update-notice {
   position: fixed;
-  inset-inline: 12px;
-  inset-block-end: calc(env(safe-area-inset-bottom) + 12px);
+  inset-inline: var(--space-12);
+  inset-block-end: calc(env(safe-area-inset-bottom) + var(--space-12));
   z-index: 35;
   display: grid;
   grid-template-columns: 1fr auto auto;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--hairline);
-  border-radius: 16px;
+  gap: var(--space-8);
+  padding: var(--space-10) var(--space-12);
+  border: var(--hairline-width) solid var(--hairline);
+  border-radius: var(--radius-confirm);
   background: var(--surface-raised);
   color: var(--ink);
-  box-shadow: 0 20px 50px rgb(0 0 0 / 0.5);
+  box-shadow: var(--shadow-banner);
 
   & .update-notice__message {
     margin: 0;
-    font-size: 0.88rem;
+    font-size: var(--type-meta);
   }
 
   & .update-notice__button {
-    min-block-size: 40px;
-    padding: 8px 14px;
-    border: 1px solid var(--hairline);
-    border-radius: 999px;
+    min-block-size: var(--target-size-sm);
+    padding: var(--space-8) var(--space-14);
+    border: var(--hairline-width) solid var(--hairline);
+    border-radius: var(--radius-pill);
     background: transparent;
     color: var(--ink);
     font: inherit;
-    font-size: 0.85rem;
+    font-size: var(--type-meta-sm);
     cursor: pointer;
 
     &:hover {
@@ -1140,8 +1294,8 @@ button {
 
     &.update-notice__button--primary {
       border-color: transparent;
-      background: linear-gradient(135deg, var(--accent-bright), var(--accent));
-      color: #141316;
+      background: var(--primary-fill);
+      color: var(--on-accent);
       font-weight: 600;
     }
   }
@@ -1150,12 +1304,22 @@ button {
 /* ---------------------------------------------------------------- motion -- */
 
 @media (prefers-reduced-motion: reduce) {
+  /* Every transition and the swap animation read these tokens, so redefining
+     them here disables the motion the redesign adds without `!important` and
+     without racing the more specific component rules. */
+  :root {
+    --motion-press: var(--motion-reduced);
+    --motion-swap: var(--motion-reduced);
+  }
+
+  .card-face.card-face--swap-next,
+  .card-face.card-face--swap-previous {
+    animation: none;
+  }
+
   *,
   *::before,
   *::after {
-    transition-duration: 0.01ms;
-    animation-duration: 0.01ms;
-    animation-iteration-count: 1;
     scroll-behavior: auto;
   }
 }

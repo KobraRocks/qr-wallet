@@ -42,15 +42,19 @@ Chrome DevTools Protocol with no added dependency, writing to
 - `main-visit` and `main-link` at 430×932, after one pager step;
 - `card-menu-open` scrolled to the active row;
 - `edit-sheet` and `edit-sheet-error`;
-- `private-backup`;
+- `private-backup` and `private-backup-confirm`;
 - `main-single-card` (pager hidden), `empty-state`, and `main-dense` (an
   800-byte Text Card, the density worst case);
 - the main view with `prefers-reduced-motion: reduce`, and at 390×844.
 
-The Private Backup confirmation is not captured: it needs a real chosen Backup
-file, so it is checked by hand. The script also prints the QR Panel's pixels per
-module, the decode-proxy result at 6/4/3/2 px per module, and the pager and
-Card Menu interaction results.
+The Private Backup confirmation is captured by injecting a temporary Backup
+JSON into the hidden file input over the CDP (`DOM.setFileInputFiles`), so no
+real file picker is involved. The script also prints the QR Panel's pixels per
+module, the decode-proxy result at 6/4/3/2 px per module, the pager and Card
+Menu interaction results, the card-swap animation (and that reduced motion
+removes it), the QR Panel's width in landscape 844×390 and at a 200%-zoom
+equivalent viewport (215×466 CSS px), and the focus target after Private Backup
+closes.
 
 Screenshots are for review, not assertions. A reviewer compares them against
 the contract in `design.md`, never against the mockups pixel for pixel.
@@ -63,12 +67,15 @@ the contract in `design.md`, never against the mockups pixel for pixel.
 - [ ] Every interactive target is at least 44×44 CSS px.
 - [ ] Focus is visible on every control as a solid 2px champagne ring, not only
       a glow, in both keyboard and pointer paths.
-- [ ] The QR Panel is flat, square, unclipped, and at least as wide as the
-      previous design's panel; no decoration touches the alabaster.
+- [ ] The QR Panel is flat, square, unclipped, and spans the Card Face's inner
+      width on every viewport; a short viewport scrolls rather than shrinking
+      it; no decoration touches the alabaster.
 - [ ] Nothing but the QR Panel is bright; no light-themed surface survives.
 - [ ] Text at 200% zoom does not clip or overlap the pager or the dock.
 - [ ] `prefers-reduced-motion: reduce` removes the card-swap slide and every
-      transition added by the redesign.
+      transition added by the redesign; the screenshot kit performs a pager swap
+      under the emulated setting and prints the computed animation and
+      transition durations.
 - [ ] Safe-area insets respected at the top bar and dock on a notched device.
 - [ ] Screen reader: the pager announces "Card n of m", the menu rows announce
       their selected state, dialogs are named, focus returns to the trigger.
@@ -80,6 +87,9 @@ the contract in `design.md`, never against the mockups pixel for pixel.
 - [ ] Active Card restored on launch; swapping clamps at both ends.
 - [ ] Choosing a Card in the menu closes it and shows that Card; focus returns.
 - [ ] Backup is reachable only from the Card Menu footer.
+- [ ] Private Backup close returns focus to the Card Menu button: the menu
+      closes before the sheet opens, so the Backup row sits inside a closed
+      `dialog` and cannot take focus.
 - [ ] The vendored font is present offline; the app makes no network request at
       runtime (DevTools network log is empty after install).
 - [ ] `npm run check:budget` passes both ceilings.

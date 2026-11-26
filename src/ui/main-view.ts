@@ -1,6 +1,7 @@
 import { CARD_KIND_NAMES, cardDisplayName, type Card } from '../domain/card';
 import { resolveActiveCardId, type Wallet } from '../domain/wallet';
 import { cardQrSvg } from '../qr/card-svg';
+import { createStrokeIcon, type StrokeShape } from './dom';
 
 /** Callbacks the main view raises; the app wires them to the Wallet store and dialogs. */
 export interface MainViewHandlers {
@@ -26,37 +27,32 @@ export interface MainView {
    * Edit action while a Card is shown, otherwise the empty state's create
    * action. Cancel and Esc keep the browser's native focus return instead.
    */
-  focusAfterClose(cardId: string | null): void;
+  focusAfterClose(): void;
 }
 
-const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+const MENU_ICON: readonly StrokeShape[] = [
+  { path: 'M4 7h16' },
+  { path: 'M4 12h16' },
+  { path: 'M4 17h16' },
+];
+const PREVIOUS_ICON: readonly StrokeShape[] = [{ path: 'M15 5l-7 7 7 7' }];
+const NEXT_ICON: readonly StrokeShape[] = [{ path: 'M9 5l7 7-7 7' }];
+const NEW_CARD_ICON: readonly StrokeShape[] = [{ path: 'M12 5v14' }, { path: 'M5 12h14' }];
+const EDIT_ICON: readonly StrokeShape[] = [{ path: 'M4 20l4.5-1 10-10-3.5-3.5-10 10L4 20z' }];
+const COPY_ICON: readonly StrokeShape[] = [{ path: 'M9 9h10v10H9z' }, { path: 'M15 9V5H5v10h4' }];
+const SHARE_ICON: readonly StrokeShape[] = [
+  { path: 'M12 16V4' },
+  { path: 'M8 8l4-4 4 4' },
+  { path: 'M5 14v5h14v-5' },
+];
 
-/**
- * Builds a stroked, decorative icon. It is always aria-hidden: every control
- * that holds one carries its own accessible name.
- */
-function createIcon(viewBox: string, pathData: readonly string[]): SVGSVGElement {
-  const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
-  svg.setAttribute('viewBox', viewBox);
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
-  svg.classList.add('icon');
-  for (const data of pathData) {
-    const path = document.createElementNS(SVG_NAMESPACE, 'path');
-    path.setAttribute('d', data);
-    path.setAttribute('fill', 'none');
-    path.setAttribute('stroke', 'currentColor');
-    path.setAttribute('stroke-width', '1.8');
-    path.setAttribute('stroke-linecap', 'round');
-    path.setAttribute('stroke-linejoin', 'round');
-    svg.append(path);
-  }
-  return svg;
-}
+/** The direction of a pager step: -1 for the previous Card, 1 for the next. */
+type SwapDirection = -1 | 1;
 
-const MENU_ICON = ['M4 7h16', 'M4 12h16', 'M4 17h16'];
-const PREVIOUS_ICON = ['M15 5l-7 7 7 7'];
-const NEXT_ICON = ['M9 5l7 7-7 7'];
+const SWAP_CLASS: Readonly<Record<SwapDirection, string>> = {
+  '-1': 'card-face--swap-previous',
+  '1': 'card-face--swap-next',
+};
 
 /** The pager: previous, a position counter, next. Hidden while one Card exists. */
 interface Pager {
@@ -64,7 +60,7 @@ interface Pager {
   update(wallet: Wallet): void;
 }
 
-function createPager(onSwap: (direction: -1 | 1) => void): Pager {
+function createPager(onStep: (direction: SwapDirection) => void): Pager {
   const element = document.createElement('nav');
   element.className = 'wallet-pager';
   element.setAttribute('aria-label', 'Card pager');
@@ -73,9 +69,9 @@ function createPager(onSwap: (direction: -1 | 1) => void): Pager {
   previous.type = 'button';
   previous.className = 'wallet-pager__step';
   previous.setAttribute('aria-label', 'Previous Card');
-  previous.append(createIcon('0 0 24 24', PREVIOUS_ICON));
+  previous.append(createStrokeIcon('icon', PREVIOUS_ICON));
   previous.addEventListener('click', () => {
-    onSwap(-1);
+    onStep(-1);
   });
 
   // The visible counter and the announcement live in one polite region: sighted
@@ -95,9 +91,9 @@ function createPager(onSwap: (direction: -1 | 1) => void): Pager {
   next.type = 'button';
   next.className = 'wallet-pager__step';
   next.setAttribute('aria-label', 'Next Card');
-  next.append(createIcon('0 0 24 24', NEXT_ICON));
+  next.append(createStrokeIcon('icon', NEXT_ICON));
   next.addEventListener('click', () => {
-    onSwap(1);
+    onStep(1);
   });
 
   element.append(previous, counter, next);
@@ -135,7 +131,7 @@ function createTopBar(handlers: MainViewHandlers, pager: Pager): HTMLElement {
   menu.className = 'wallet-top-bar__control';
   menu.setAttribute('aria-label', 'Cards');
   menu.setAttribute('aria-haspopup', 'dialog');
-  menu.append(createIcon('0 0 24 24', MENU_ICON));
+  menu.append(createStrokeIcon('icon', MENU_ICON));
   menu.addEventListener('click', () => {
     handlers.onOpenMenu();
   });
@@ -145,7 +141,7 @@ function createTopBar(handlers: MainViewHandlers, pager: Pager): HTMLElement {
   create.className = 'wallet-top-bar__control wallet-top-bar__new';
   create.setAttribute('aria-label', 'New Card');
   create.setAttribute('aria-haspopup', 'dialog');
-  create.append(createIcon('0 0 24 24', ['M12 5v14', 'M5 12h14']));
+  create.append(createStrokeIcon('icon', NEW_CARD_ICON));
   create.addEventListener('click', () => {
     handlers.onNewCard();
   });
@@ -158,11 +154,14 @@ function createTopBar(handlers: MainViewHandlers, pager: Pager): HTMLElement {
 interface CardFace {
   readonly element: HTMLElement;
   show(card: Card): void;
+  /** Plays the one-shot, direction-aware slide-and-fade of a Card swap. */
+  playSwap(direction: SwapDirection): void;
 }
 
 function createCardFace(): CardFace {
   const face = document.createElement('article');
   face.className = 'card-face';
+  face.setAttribute('aria-labelledby', 'active-card-name');
 
   // Four machined corners, drawn on the titanium frame. They are decoration
   // outside the alabaster inset and never touch the code's quiet zone.
@@ -187,6 +186,20 @@ function createCardFace(): CardFace {
 
   face.append(name, subtitle, panel);
 
+  // The animation is one-shot: its class is dropped when it ends. Under
+  // reduced motion CSS sets `animation: none`, so the class is inert there.
+  face.addEventListener('animationend', () => {
+    face.classList.remove(SWAP_CLASS[-1], SWAP_CLASS[1]);
+  });
+
+  /** Restarts the slide-and-fade from the direction the Wallet is moving. */
+  function playSwap(direction: SwapDirection): void {
+    face.classList.remove(SWAP_CLASS[-1], SWAP_CLASS[1]);
+    // Read layout so re-adding the class restarts the animation.
+    void face.offsetWidth;
+    face.classList.add(SWAP_CLASS[direction]);
+  }
+
   function show(card: Card): void {
     name.textContent = cardDisplayName(card);
     const organization = card.source.kind === 'visit' ? card.source.organization.trim() : '';
@@ -205,14 +218,14 @@ function createCardFace(): CardFace {
     }
   }
 
-  return { element: face, show };
+  return { element: face, show, playSwap };
 }
 
 /** One dock action; `label` is visible, `accessibleName` completes it when needed. */
 function createDockAction(
   label: string,
   accessibleName: string | null,
-  icon: readonly string[],
+  icon: readonly StrokeShape[],
   onPress: () => void,
 ): HTMLLIElement {
   const item = document.createElement('li');
@@ -225,7 +238,7 @@ function createDockAction(
   const text = document.createElement('span');
   text.className = 'action-dock__label';
   text.textContent = label;
-  button.append(createIcon('0 0 24 24', icon), text);
+  button.append(createStrokeIcon('icon', icon), text);
   button.addEventListener('click', onPress);
   item.append(button);
   return item;
@@ -248,31 +261,21 @@ function createDock(handlers: MainViewHandlers): Dock {
   const list = document.createElement('ul');
   list.className = 'action-dock__list';
 
-  const edit = createDockAction('Edit', null, ['M4 20l4.5-1 10-10-3.5-3.5-10 10L4 20z'], () => {
+  const edit = createDockAction('Edit', null, EDIT_ICON, () => {
     if (activeCard !== null) {
       handlers.onEditCard(activeCard);
     }
   });
-  const copy = createDockAction(
-    'Copy',
-    'Copy Payload',
-    ['M9 9h10v10H9z', 'M15 9V5H5v10h4'],
-    () => {
-      if (activeCard !== null) {
-        handlers.onCopyPayload(activeCard);
-      }
-    },
-  );
-  const share = createDockAction(
-    'Share',
-    null,
-    ['M12 16V4', 'M8 8l4-4 4 4', 'M5 14v5h14v-5'],
-    () => {
-      if (activeCard !== null) {
-        handlers.onShareCard(activeCard);
-      }
-    },
-  );
+  const copy = createDockAction('Copy', 'Copy Payload', COPY_ICON, () => {
+    if (activeCard !== null) {
+      handlers.onCopyPayload(activeCard);
+    }
+  });
+  const share = createDockAction('Share', null, SHARE_ICON, () => {
+    if (activeCard !== null) {
+      handlers.onShareCard(activeCard);
+    }
+  });
 
   list.append(edit, copy, share);
   dock.append(list);
@@ -328,7 +331,7 @@ export function renderMainView(
   const empty = createEmptyState(handlers);
   const dock = createDock(handlers);
   const pager = createPager((direction) => {
-    swap(direction);
+    stepCard(direction);
   });
   const topBar = createTopBar(handlers, pager);
 
@@ -336,9 +339,11 @@ export function renderMainView(
   root.replaceChildren(view);
 
   let currentWallet: Wallet = wallet;
+  /** The direction of the swap currently rendering, so its update can animate. */
+  let pendingSwap: SwapDirection | null = null;
 
   /** Moves to the neighbouring Card, clamped at both ends. */
-  function swap(direction: -1 | 1): void {
+  function stepCard(direction: SwapDirection): void {
     const index = currentWallet.cards.findIndex(
       (card) => card.id === resolveActiveCardId(currentWallet),
     );
@@ -346,6 +351,7 @@ export function renderMainView(
     if (index < 0 || target === undefined) {
       return;
     }
+    pendingSwap = direction;
     update(handlers.onSelectCard(target.id));
   }
 
@@ -361,16 +367,16 @@ export function renderMainView(
 
     if (card !== null) {
       face.show(card);
+      if (pendingSwap !== null) {
+        face.playSwap(pendingSwap);
+        pendingSwap = null;
+      }
     }
   }
 
-  function focusAfterClose(cardId: string | null): void {
-    if (cardId === null) {
-      if (!empty.hidden) {
-        empty.querySelector<HTMLElement>('.empty-state__create')?.focus();
-        return;
-      }
-      view.querySelector<HTMLElement>('.wallet-top-bar__new')?.focus();
+  function focusAfterClose(): void {
+    if (!empty.hidden) {
+      empty.querySelector<HTMLElement>('.empty-state__create')?.focus();
       return;
     }
     dock.element.querySelector<HTMLElement>('.action-dock__action')?.focus();
