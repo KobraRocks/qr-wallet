@@ -58,3 +58,19 @@ export interface Card {
 export function createCardId(): string {
   return crypto.randomUUID();
 }
+
+/**
+ * The Display Name a Card Face shows: a Visit Card's trimmed full name, or the
+ * Card's label when the Payload supplies no better identity. It is derived, so
+ * it follows edits to the name fields without being stored.
+ */
+export function cardDisplayName(card: Card): string {
+  if (card.source.kind !== 'visit') {
+    return card.label;
+  }
+  const fullName = [card.source.firstName, card.source.lastName]
+    .map((part) => part.trim())
+    .filter((part) => part !== '')
+    .join(' ');
+  return fullName === '' ? card.label : fullName;
+}

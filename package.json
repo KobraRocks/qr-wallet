@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "icons": "node scripts/generate-icons.ts",
-    "check:budget": "node scripts/check-budget.ts"
+    "check:budget": "node scripts/check-budget.ts",
+    "shots": "node scripts/shots.mjs"
   },
   "dependencies": {
     "qr": "0.7.2"

@@ -40,8 +40,10 @@ Other scripts:
 
 - `npm run icons` — regenerates the checked-in icons in `public/icons/`. It is deterministic,
   so running it should leave the working tree clean.
-- `npm run check:budget` — run after `npm run build`; measures shipped JS + CSS gzipped and
-  fails above the 30 KB budget.
+- `npm run check:budget` — run after `npm run build`; measures shipped JS + CSS gzipped
+  against a 30 KB budget and JS + CSS + fonts against a 64 KB combined budget.
+- `npm run shots` — captures the design-review screenshots into `.artifacts/screenshots/`
+  using headless Chromium; see `docs/design/verification.md`.
 - `npm run test:watch` — Vitest in watch mode.
 
 The service worker is registered only in production builds, so `npm run dev` does not test
@@ -107,7 +109,8 @@ installing, open the app once online so the offline shell is cached.
 ## Offline behavior and updates
 
 After the first successful online load (or install), the service worker precaches the complete
-shell: the document, the JS and CSS for that build, the manifest, and the icons. From then on
+shell: the document, the JS and CSS for that build, the display font and its licence, the
+manifest, and the icons. From then on
 the app opens and works with the network disabled — all Cards are available, switching,
 creating, editing, copying, sharing/downloading, and Backup are local operations.
 
@@ -123,10 +126,10 @@ changes when you choose to reload — so a scan in progress is never interrupted
 The Wallet lives on this device only. A Backup is the way to move it to a new phone or to
 recover after a lost or wiped device.
 
-- **Export:** open the footer **gear** → **Export JSON**. The app downloads
-  `qr-wallet-backup.json`, containing every Card and the active Card id.
+- **Export:** open the **Card Menu** (top-left) → **Backup** → **Export JSON**. The app
+  downloads `qr-wallet-backup.json`, containing every Card and the active Card id.
 - **Restore on a new phone:** install and open QR Wallet there (the first load needs a
-  network), open the footer gear → **Import JSON**, pick the backup file, and confirm
+  network), open the Card Menu → Backup → **Import JSON**, pick the backup file, and confirm
   **Replace Wallet**. The imported active Card is restored when it resolves, otherwise the
   first Card becomes active.
 - **All-or-nothing:** the whole file is validated before anything is written. A corrupt,
@@ -152,10 +155,22 @@ one device only.
 ## Privacy
 
 There are no accounts, sign-ins, analytics, or telemetry, and the app makes **no network
-requests at runtime** — no fonts, scripts, images, or APIs are fetched from anywhere. The
-Wallet is stored in the browser's `localStorage` on the device (`qr_wallet_v1`), and a Backup
+requests at runtime** — no externally hosted fonts, scripts, images, or APIs are fetched from
+anywhere. The one font is vendored in the repository and precached with the rest of the shell.
+The Wallet is stored in the browser's `localStorage` on the device (`qr_wallet_v1`), and a Backup
 is written only to a file you choose. Card data leaves the device only when you deliberately
 share a QR SVG or copy a Payload.
+
+## Design
+
+The visual contract is [docs/design/design.md](docs/design/design.md): one obsidian theme,
+titanium surfaces, a single warm-alabaster QR Panel, and display type in a vendored Cormorant
+Garamond. Acceptance is [docs/design/verification.md](docs/design/verification.md) — a
+two-phone scan matrix plus a screenshot kit; both are manual, and screenshots are review
+material rather than assertions. The decisions behind the look are
+[ADR-0003](docs/adr/0003-one-obsidian-theme.md),
+[ADR-0004](docs/adr/0004-vendored-display-face.md), and
+[ADR-0005](docs/adr/0005-qr-panel-is-flat-square-and-maximal.md).
 
 ## Verifying on a real phone
 
@@ -163,4 +178,5 @@ Some behavior can only be checked on a device: the browser's install prompt, a r
 scanning the QR Panel in different lighting, the iOS/Android share sheet targets, and wake
 lock. The build itself is checked by the type check, the test suite, the measured bundle, the
 injected precache manifest, the production build, and a headless pass over the service worker,
-offline reload, subpath hosting, and the light/dark QR Panel.
+offline reload, and subpath hosting. The single dark theme and the QR Panel are checked with
+`npm run shots` and the scan matrix in [docs/design/verification.md](docs/design/verification.md).

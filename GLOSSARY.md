@@ -6,7 +6,7 @@ A phone-first wallet of scannable QR codes. Each card is presented on screen for
 
 **Wallet**:
 The complete set of cards on one device.
-_Avoid_: Account, collection, library
+_Avoid_: Account, collection, library, vault
 
 **Card**:
 A saved wallet entry: a label, one card kind, and the source of one payload.
@@ -36,13 +36,29 @@ _Avoid_: Data, content, value
 The vCard 3.0 interchange format used for Visit Card payloads.
 _Avoid_: Contact file, VCF
 
+**Display Name**:
+The name a Card Face shows: derived from the Card's Payload when the Payload supplies one (a Visit Card's full name), otherwise the Card's label.
+_Avoid_: Title, heading
+
+**Card Face**:
+The main view surface that presents the active Card: its Display Name, its kind, and its QR Panel.
+_Avoid_: Card view, preview
+
 **QR Panel**:
-The white, black-on-white surface that displays the active card's QR code.
+The light surface that displays the active Card's QR code.
 _Avoid_: QR card, code card
 
-**Pill**:
-A control in the horizontal selector that switches the displayed card.
-_Avoid_: Tab, chip
+**Card Menu**:
+The vertical list of every Card in the Wallet, opened from the main view, that switches the displayed Card.
+_Avoid_: Drawer, sidebar, tabs, Pills
+
+**Pager**:
+The top bar control that steps to the previous or next Card and shows the position in the Wallet.
+_Avoid_: Arrows, carousel, swipe
+
+**Dock**:
+The floating row of actions for the active Card in the main view: Edit, Copy Payload, and Share.
+_Avoid_: Toolbar, action bar
 
 **Seed Cards**:
 The three placeholder cards created on first launch only: Visit Card, Website, Sales Deck.
@@ -50,4 +66,8 @@ _Avoid_: Defaults, samples, examples
 
 **Backup**:
 A portable copy of the complete wallet, used to move cards to another device.
-_Avoid_: Sync, cloud backup
+_Avoid_: Sync, cloud backup, vault
+
+**Private Backup**:
+The sheet, opened from the Card Menu footer, that exports and imports a Backup.
+_Avoid_: Vault, cloud backup

@@ -2,6 +2,9 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-25
+- **Amended by:** [ADR-0004](0004-vendored-display-face.md) — the "no webfonts or
+  external assets" constraint no longer holds: one display face is vendored and
+  precached with the rest of the shell.
 
 ## Context
 

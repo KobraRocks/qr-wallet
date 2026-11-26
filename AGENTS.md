@@ -1,3 +1,9 @@
+## Coding standards
+
+Semantic HTML first, lists for repeated things, native CSS nesting instead of
+class-per-element, no frameworks and no Tailwind, tokens over literals. Read
+`docs/agents/coding-standards.md` before changing markup or CSS.
+
 ## Agent skills
 
 ### Issue tracker

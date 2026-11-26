@@ -1,227 +1,306 @@
-import { CARD_KIND_NAMES, type Card } from '../domain/card';
+import { CARD_KIND_NAMES, cardDisplayName, type Card } from '../domain/card';
 import { resolveActiveCardId, type Wallet } from '../domain/wallet';
 import { cardQrSvg } from '../qr/card-svg';
+import { createStrokeIcon, type StrokeShape } from './dom';
 
 /** Callbacks the main view raises; the app wires them to the Wallet store and dialogs. */
 export interface MainViewHandlers {
-  /**
-   * Activates the Card whose Pill was pressed and returns the updated Wallet.
-   * The view swaps the QR Panel, label, and subtitle in place with that Wallet.
-   */
+  /** Activates a Card and returns the updated Wallet. */
   onSelectCard(cardId: string): Wallet;
   /** Opens the editor for a new Card; it becomes active once saved. */
   onNewCard(): void;
+  /** Opens the Card Menu over the main view. */
+  onOpenMenu(): void;
   /** Opens the editor pre-filled with the given Card. */
   onEditCard(card: Card): void;
   /** Copies the given Card's exact Payload and reports the result. */
   onCopyPayload(card: Card): void;
   /** Shares the given Card's QR SVG, or downloads it when sharing is unavailable. */
   onShareCard(card: Card): void;
-  /** Opens the Backup dialog from the footer gear. */
-  onOpenBackup(): void;
 }
 
 /** A mounted main view that re-renders in place when the Wallet changes. */
 export interface MainView {
   update(wallet: Wallet): void;
   /**
-   * Moves focus to a Card's Pill after the Wallet changed, or to the create
-   * call to action when there is no active Card. Used after the editor closes
-   * so a save or delete lands the owner on the updated Card.
+   * Places focus after the editor closes from a save or a delete: the dock's
+   * Edit action while a Card is shown, otherwise the empty state's create
+   * action. Cancel and Esc keep the browser's native focus return instead.
    */
-  focusCardPill(cardId: string | null): void;
+  focusAfterClose(): void;
 }
 
-const ACTIVE_PILL_CLASS = 'wallet-view__pill--active';
+const MENU_ICON: readonly StrokeShape[] = [
+  { path: 'M4 7h16' },
+  { path: 'M4 12h16' },
+  { path: 'M4 17h16' },
+];
+const PREVIOUS_ICON: readonly StrokeShape[] = [{ path: 'M15 5l-7 7 7 7' }];
+const NEXT_ICON: readonly StrokeShape[] = [{ path: 'M9 5l7 7-7 7' }];
+const NEW_CARD_ICON: readonly StrokeShape[] = [{ path: 'M12 5v14' }, { path: 'M5 12h14' }];
+const EDIT_ICON: readonly StrokeShape[] = [{ path: 'M4 20l4.5-1 10-10-3.5-3.5-10 10L4 20z' }];
+const COPY_ICON: readonly StrokeShape[] = [{ path: 'M9 9h10v10H9z' }, { path: 'M15 9V5H5v10h4' }];
+const SHARE_ICON: readonly StrokeShape[] = [
+  { path: 'M12 16V4' },
+  { path: 'M8 8l4-4 4 4' },
+  { path: 'M5 14v5h14v-5' },
+];
 
-const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+/** The direction of a pager step: -1 for the previous Card, 1 for the next. */
+type SwapDirection = -1 | 1;
 
-/**
- * A small gear glyph for the footer Backup control. It is aria-hidden because
- * the button itself carries the accessible name; no user data reaches the DOM.
- */
-function createGearIcon(): SVGSVGElement {
-  const svg = document.createElementNS(SVG_NAMESPACE, 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('width', '22');
-  svg.setAttribute('height', '22');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
+const SWAP_CLASS: Readonly<Record<SwapDirection, string>> = {
+  '-1': 'card-face--swap-previous',
+  '1': 'card-face--swap-next',
+};
 
-  const ring = document.createElementNS(SVG_NAMESPACE, 'circle');
-  ring.setAttribute('cx', '12');
-  ring.setAttribute('cy', '12');
-  ring.setAttribute('r', '7');
-  ring.setAttribute('fill', 'none');
-  ring.setAttribute('stroke', 'currentColor');
-  ring.setAttribute('stroke-width', '2');
-
-  const hub = document.createElementNS(SVG_NAMESPACE, 'circle');
-  hub.setAttribute('cx', '12');
-  hub.setAttribute('cy', '12');
-  hub.setAttribute('r', '2.5');
-  hub.setAttribute('fill', 'none');
-  hub.setAttribute('stroke', 'currentColor');
-  hub.setAttribute('stroke-width', '2');
-
-  const teeth = document.createElementNS(SVG_NAMESPACE, 'path');
-  teeth.setAttribute(
-    'd',
-    'M19 12h3M2 12h3M12 5V2M12 22v-3M16.95 16.95l2.12 2.12M4.93 4.93l2.12 2.12M16.95 7.05l2.12-2.12M4.93 19.07l2.12-2.12',
-  );
-  teeth.setAttribute('fill', 'none');
-  teeth.setAttribute('stroke', 'currentColor');
-  teeth.setAttribute('stroke-width', '2');
-  teeth.setAttribute('stroke-linecap', 'round');
-
-  svg.append(ring, hub, teeth);
-  return svg;
+/** The pager: previous, a position counter, next. Hidden while one Card exists. */
+interface Pager {
+  readonly element: HTMLElement;
+  update(wallet: Wallet): void;
 }
 
-/** The footer holds only the Backup gear, so export and import stay off the scanning path. */
-function createFooter(handlers: MainViewHandlers): HTMLElement {
-  const footer = document.createElement('footer');
-  footer.className = 'wallet-view__footer';
+function createPager(onStep: (direction: SwapDirection) => void): Pager {
+  const element = document.createElement('nav');
+  element.className = 'wallet-pager';
+  element.setAttribute('aria-label', 'Card pager');
 
-  const backup = document.createElement('button');
-  backup.type = 'button';
-  backup.className = 'wallet-view__backup';
-  backup.setAttribute('aria-label', 'Backup');
-  backup.setAttribute('aria-haspopup', 'dialog');
-  backup.append(createGearIcon());
-  backup.addEventListener('click', () => {
-    handlers.onOpenBackup();
+  const previous = document.createElement('button');
+  previous.type = 'button';
+  previous.className = 'wallet-pager__step';
+  previous.setAttribute('aria-label', 'Previous Card');
+  previous.append(createStrokeIcon('icon', PREVIOUS_ICON));
+  previous.addEventListener('click', () => {
+    onStep(-1);
   });
 
-  footer.append(backup);
-  return footer;
-}
+  // The visible counter and the announcement live in one polite region: sighted
+  // owners see "2 / 5", screen readers hear which Card is showing.
+  const counter = document.createElement('p');
+  counter.className = 'wallet-pager__count';
+  counter.setAttribute('aria-live', 'polite');
+  counter.setAttribute('aria-atomic', 'true');
 
-function createPill(card: Card, onSelect: (cardId: string) => void): HTMLButtonElement {
-  const pill = document.createElement('button');
-  pill.type = 'button';
-  pill.className = 'wallet-view__pill';
-  pill.dataset.cardId = card.id;
-  pill.textContent = card.label;
-  pill.setAttribute('aria-pressed', 'false');
-  pill.addEventListener('click', () => {
-    onSelect(card.id);
+  const visibleCount = document.createElement('span');
+  visibleCount.setAttribute('aria-hidden', 'true');
+  const announcedCount = document.createElement('span');
+  announcedCount.className = 'visually-hidden';
+  counter.append(visibleCount, announcedCount);
+
+  const next = document.createElement('button');
+  next.type = 'button';
+  next.className = 'wallet-pager__step';
+  next.setAttribute('aria-label', 'Next Card');
+  next.append(createStrokeIcon('icon', NEXT_ICON));
+  next.addEventListener('click', () => {
+    onStep(1);
   });
-  return pill;
-}
 
-/**
- * The "+ New" Pill is present in every Wallet state, including empty, so creating
- * a Card is always discoverable. It opens the same modal editor the Edit action uses.
- */
-function createNewPill(handlers: MainViewHandlers): HTMLButtonElement {
-  const pill = document.createElement('button');
-  pill.type = 'button';
-  pill.className = 'wallet-view__pill wallet-view__pill--new';
-  pill.textContent = '+ New';
-  pill.setAttribute('aria-haspopup', 'dialog');
-  pill.addEventListener('click', () => {
-    handlers.onNewCard();
-  });
-  return pill;
-}
+  element.append(previous, counter, next);
 
-function createHeading(card: Card): HTMLElement {
-  const heading = document.createElement('header');
-  heading.className = 'wallet-view__heading';
-
-  const label = document.createElement('h1');
-  label.className = 'wallet-view__label';
-  label.id = 'active-card-label';
-  label.textContent = card.label;
-
-  const subtitle = document.createElement('p');
-  subtitle.className = 'wallet-view__subtitle';
-  subtitle.textContent = CARD_KIND_NAMES[card.source.kind];
-
-  heading.append(label, subtitle);
-  return heading;
-}
-
-/**
- * The QR Panel: a pure white surface holding the black QR code. The inline SVG
- * carries no colours of its own, so it is never themed or inverted.
- */
-function createQrPanel(card: Card): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'qr-panel';
-  panel.setAttribute('aria-labelledby', 'active-card-label');
-
-  const code = document.createElement('div');
-  code.className = 'qr-panel__code';
-
-  // cardQrSvg guards the markup before it reaches innerHTML; the SVG is a bare
-  // `<svg viewBox>` with one `<path>` and never contains the Payload. Share
-  // writes this same markup to its file, so both surfaces show the same code.
-  code.innerHTML = cardQrSvg(card);
-
-  const svg = code.querySelector('svg');
-  if (svg !== null) {
-    svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', `QR code for ${card.label}`);
+  function update(wallet: Wallet): void {
+    const index = wallet.cards.findIndex((card) => card.id === resolveActiveCardId(wallet));
+    const total = wallet.cards.length;
+    element.hidden = total < 2;
+    if (total < 2 || index < 0) {
+      return;
+    }
+    const card = wallet.cards[index];
+    visibleCount.textContent = `${index + 1} / ${total}`;
+    announcedCount.textContent = `Card ${index + 1} of ${total}: ${
+      card === undefined ? '' : cardDisplayName(card)
+    }`;
+    previous.disabled = index === 0;
+    next.disabled = index === total - 1;
   }
 
-  panel.append(code);
-  return panel;
+  return { element, update };
 }
 
 /**
- * The active Card's action row: Edit, Copy Payload, and Share. Edit opens the
- * editor; Copy and Share act on the same Card the QR Panel is showing.
+ * The top bar: the Card Menu on the left, the pager in the centre, and the New
+ * Card control on the right. It is built once and never re-created, so focus
+ * survives every Wallet update.
  */
-function createActions(card: Card, handlers: MainViewHandlers): HTMLElement {
-  const actions = document.createElement('div');
-  actions.className = 'wallet-view__actions';
-  actions.setAttribute('role', 'group');
-  actions.setAttribute('aria-label', 'Card actions');
+function createTopBar(handlers: MainViewHandlers, pager: Pager): HTMLElement {
+  const bar = document.createElement('header');
+  bar.className = 'wallet-top-bar';
 
-  const edit = document.createElement('button');
-  edit.type = 'button';
-  edit.className = 'wallet-view__action';
-  edit.textContent = 'Edit';
-  edit.setAttribute('aria-haspopup', 'dialog');
-  edit.addEventListener('click', () => {
-    handlers.onEditCard(card);
+  const menu = document.createElement('button');
+  menu.type = 'button';
+  menu.className = 'wallet-top-bar__control';
+  menu.setAttribute('aria-label', 'Cards');
+  menu.setAttribute('aria-haspopup', 'dialog');
+  menu.append(createStrokeIcon('icon', MENU_ICON));
+  menu.addEventListener('click', () => {
+    handlers.onOpenMenu();
   });
 
-  const copy = document.createElement('button');
-  copy.type = 'button';
-  copy.className = 'wallet-view__action';
-  copy.textContent = 'Copy Payload';
-  copy.addEventListener('click', () => {
-    handlers.onCopyPayload(card);
+  const create = document.createElement('button');
+  create.type = 'button';
+  create.className = 'wallet-top-bar__control wallet-top-bar__new';
+  create.setAttribute('aria-label', 'New Card');
+  create.setAttribute('aria-haspopup', 'dialog');
+  create.append(createStrokeIcon('icon', NEW_CARD_ICON));
+  create.addEventListener('click', () => {
+    handlers.onNewCard();
   });
 
-  const share = document.createElement('button');
-  share.type = 'button';
-  share.className = 'wallet-view__action';
-  share.textContent = 'Share';
-  share.addEventListener('click', () => {
-    handlers.onShareCard(card);
-  });
-
-  actions.append(edit, copy, share);
-
-  return actions;
+  bar.append(menu, pager.element, create);
+  return bar;
 }
 
-/** The empty state: no active Card, one call to action, and the "+ New" Pill above it. */
+/** The Card Face: Display Name, a kind · organization subtitle, and the QR Panel. */
+interface CardFace {
+  readonly element: HTMLElement;
+  show(card: Card): void;
+  /** Plays the one-shot, direction-aware slide-and-fade of a Card swap. */
+  playSwap(direction: SwapDirection): void;
+}
+
+function createCardFace(): CardFace {
+  const face = document.createElement('article');
+  face.className = 'card-face';
+  face.setAttribute('aria-labelledby', 'active-card-name');
+
+  // Four machined corners, drawn on the titanium frame. They are decoration
+  // outside the alabaster inset and never touch the code's quiet zone.
+  for (const corner of ['tl', 'tr', 'bl', 'br'] as const) {
+    const bracket = document.createElement('span');
+    bracket.className = 'card-face__bracket';
+    bracket.dataset.corner = corner;
+    bracket.setAttribute('aria-hidden', 'true');
+    face.append(bracket);
+  }
+
+  const name = document.createElement('h1');
+  name.className = 'card-face__name';
+  name.id = 'active-card-name';
+
+  const subtitle = document.createElement('p');
+  subtitle.className = 'card-face__subtitle';
+
+  const panel = document.createElement('section');
+  panel.className = 'qr-panel';
+  panel.setAttribute('aria-labelledby', 'active-card-name');
+
+  face.append(name, subtitle, panel);
+
+  // The animation is one-shot: its class is dropped when it ends. Under
+  // reduced motion CSS sets `animation: none`, so the class is inert there.
+  face.addEventListener('animationend', () => {
+    face.classList.remove(SWAP_CLASS[-1], SWAP_CLASS[1]);
+  });
+
+  /** Restarts the slide-and-fade from the direction the Wallet is moving. */
+  function playSwap(direction: SwapDirection): void {
+    face.classList.remove(SWAP_CLASS[-1], SWAP_CLASS[1]);
+    // Read layout so re-adding the class restarts the animation.
+    void face.offsetWidth;
+    face.classList.add(SWAP_CLASS[direction]);
+  }
+
+  function show(card: Card): void {
+    name.textContent = cardDisplayName(card);
+    const organization = card.source.kind === 'visit' ? card.source.organization.trim() : '';
+    subtitle.textContent =
+      organization === ''
+        ? CARD_KIND_NAMES[card.source.kind]
+        : `${CARD_KIND_NAMES[card.source.kind]} · ${organization}`;
+
+    // The SVG is a bare `<svg viewBox>` with one `<path>` and never contains the
+    // Payload in markup; cardQrSvg guards it before it reaches innerHTML.
+    panel.innerHTML = cardQrSvg(card);
+    const svg = panel.querySelector('svg');
+    if (svg !== null) {
+      svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label', `QR code for ${cardDisplayName(card)}`);
+    }
+  }
+
+  return { element: face, show, playSwap };
+}
+
+/** One dock action; `label` is visible, `accessibleName` completes it when needed. */
+function createDockAction(
+  label: string,
+  accessibleName: string | null,
+  icon: readonly StrokeShape[],
+  onPress: () => void,
+): HTMLLIElement {
+  const item = document.createElement('li');
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'action-dock__action';
+  if (accessibleName !== null) {
+    button.setAttribute('aria-label', accessibleName);
+  }
+  const text = document.createElement('span');
+  text.className = 'action-dock__label';
+  text.textContent = label;
+  button.append(createStrokeIcon('icon', icon), text);
+  button.addEventListener('click', onPress);
+  item.append(button);
+  return item;
+}
+
+/** The floating dock of actions for the Card the face is showing. */
+interface Dock {
+  readonly element: HTMLElement;
+  setActiveCard(card: Card | null): void;
+}
+
+function createDock(handlers: MainViewHandlers): Dock {
+  const dock = document.createElement('div');
+  dock.className = 'action-dock';
+  dock.setAttribute('role', 'group');
+  dock.setAttribute('aria-label', 'Card actions');
+
+  let activeCard: Card | null = null;
+
+  const list = document.createElement('ul');
+  list.className = 'action-dock__list';
+
+  const edit = createDockAction('Edit', null, EDIT_ICON, () => {
+    if (activeCard !== null) {
+      handlers.onEditCard(activeCard);
+    }
+  });
+  const copy = createDockAction('Copy', 'Copy Payload', COPY_ICON, () => {
+    if (activeCard !== null) {
+      handlers.onCopyPayload(activeCard);
+    }
+  });
+  const share = createDockAction('Share', null, SHARE_ICON, () => {
+    if (activeCard !== null) {
+      handlers.onShareCard(activeCard);
+    }
+  });
+
+  list.append(edit, copy, share);
+  dock.append(list);
+
+  return {
+    element: dock,
+    setActiveCard(card) {
+      activeCard = card;
+      dock.hidden = card === null;
+    },
+  };
+}
+
+/** The empty state: no active Card, one call to action, and the top bar above it. */
 function createEmptyState(handlers: MainViewHandlers): HTMLElement {
-  const empty = document.createElement('div');
-  empty.className = 'wallet-view__empty';
+  const empty = document.createElement('section');
+  empty.className = 'empty-state';
 
   const message = document.createElement('p');
-  message.className = 'wallet-view__empty-message';
+  message.className = 'empty-state__message';
   message.textContent = 'No Cards yet.';
 
   const create = document.createElement('button');
   create.type = 'button';
-  create.className = 'wallet-view__create';
+  create.className = 'empty-state__create';
   create.textContent = 'Create a Card';
   create.setAttribute('aria-haspopup', 'dialog');
   create.addEventListener('click', () => {
@@ -233,12 +312,12 @@ function createEmptyState(handlers: MainViewHandlers): HTMLElement {
 }
 
 /**
- * Renders the main view and returns a handle that re-renders it in place.
+ * Renders the main view and returns a handle that updates it in place.
  *
- * The Pill selector stays mounted across Wallet updates, so pressing a Pill
- * swaps the QR Panel, label, and subtitle immediately — no network, no reload —
- * and keyboard focus stays on the pressed Pill. A Wallet with no Cards renders
- * the empty state and no active Card.
+ * The top bar, card face, dock, and empty state stay mounted: a Wallet update
+ * changes text and the QR markup only, so focus is never lost and no Card Menu
+ * or dialog loses its trigger. A Wallet with no Cards hides the face, the dock,
+ * and the pager, and shows the empty state.
  */
 export function renderMainView(
   root: HTMLElement,
@@ -248,102 +327,62 @@ export function renderMainView(
   const view = document.createElement('main');
   view.className = 'wallet-view';
 
-  const selector = document.createElement('div');
-  selector.className = 'wallet-view__selector';
-  selector.setAttribute('role', 'group');
-  selector.setAttribute('aria-label', 'Cards');
+  const face = createCardFace();
+  const empty = createEmptyState(handlers);
+  const dock = createDock(handlers);
+  const pager = createPager((direction) => {
+    stepCard(direction);
+  });
+  const topBar = createTopBar(handlers, pager);
 
-  const content = document.createElement('div');
-  content.className = 'wallet-view__content';
-
-  view.append(selector, content, createFooter(handlers));
+  view.append(topBar, face.element, empty, dock.element);
   root.replaceChildren(view);
 
-  /** Distinct Cards and labels need a fresh set of Pills; active-id changes do not. */
-  function cardSignature(current: Wallet): string {
-    return current.cards.map((card) => `${card.id}\u0000${card.label}`).join('\u0001');
-  }
+  let currentWallet: Wallet = wallet;
+  /** The direction of the swap currently rendering, so its update can animate. */
+  let pendingSwap: SwapDirection | null = null;
 
-  function focusedCardId(): string | null {
-    return document.activeElement instanceof HTMLElement
-      ? (document.activeElement.dataset.cardId ?? null)
-      : null;
-  }
-
-  /** Focuses the Pill for a Card id and reports whether that Pill exists. */
-  function focusPill(cardId: string): boolean {
-    for (const pill of selector.querySelectorAll<HTMLElement>('[data-card-id]')) {
-      if (pill.dataset.cardId === cardId) {
-        pill.focus();
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function rebuildSelector(next: Wallet): void {
-    const previousFocus = focusedCardId();
-    selector.replaceChildren(
-      ...next.cards.map((card) => createPill(card, activate)),
-      createNewPill(handlers),
+  /** Moves to the neighbouring Card, clamped at both ends. */
+  function stepCard(direction: SwapDirection): void {
+    const index = currentWallet.cards.findIndex(
+      (card) => card.id === resolveActiveCardId(currentWallet),
     );
-    if (previousFocus !== null) {
-      focusPill(previousFocus);
+    const target = currentWallet.cards[index + direction];
+    if (index < 0 || target === undefined) {
+      return;
     }
-  }
-
-  function updatePills(activeId: string | null): void {
-    for (const pill of selector.querySelectorAll<HTMLButtonElement>('[data-card-id]')) {
-      const isActive = pill.dataset.cardId === activeId;
-      pill.classList.toggle(ACTIVE_PILL_CLASS, isActive);
-      pill.setAttribute('aria-pressed', String(isActive));
-    }
-  }
-
-  function renderContent(next: Wallet, activeId: string | null): void {
-    const card = next.cards.find((candidate) => candidate.id === activeId) ?? null;
-    content.replaceChildren(
-      ...(card === null
-        ? [createEmptyState(handlers)]
-        : [createHeading(card), createQrPanel(card), createActions(card, handlers)]),
-    );
-  }
-
-  let selectorSignature: string | null = null;
-
-  /** Activates a Card through the store callback and re-renders in place. */
-  function activate(cardId: string): void {
-    update(handlers.onSelectCard(cardId));
+    pendingSwap = direction;
+    update(handlers.onSelectCard(target.id));
   }
 
   function update(next: Wallet): void {
-    // An unresolvable id (which the Wallet store repairs on load) falls back to
-    // the first Card rather than rendering a selector with nothing selected.
+    currentWallet = next;
     const activeId = resolveActiveCardId(next);
+    const card = next.cards.find((candidate) => candidate.id === activeId) ?? null;
 
-    const signature = cardSignature(next);
-    if (signature !== selectorSignature) {
-      rebuildSelector(next);
-      selectorSignature = signature;
+    face.element.hidden = card === null;
+    empty.hidden = card !== null;
+    dock.setActiveCard(card);
+    pager.update(next);
+
+    if (card !== null) {
+      face.show(card);
+      if (pendingSwap !== null) {
+        face.playSwap(pendingSwap);
+        pendingSwap = null;
+      }
     }
-    updatePills(activeId);
-    renderContent(next, activeId);
   }
 
-  /** Focus after a save or delete: the Card's Pill, or the create call to action. */
-  function focusCardPill(cardId: string | null): void {
-    if (cardId !== null && focusPill(cardId)) {
+  function focusAfterClose(): void {
+    if (!empty.hidden) {
+      empty.querySelector<HTMLElement>('.empty-state__create')?.focus();
       return;
     }
-    const create = content.querySelector<HTMLElement>('.wallet-view__create');
-    if (create !== null) {
-      create.focus();
-      return;
-    }
-    selector.querySelector<HTMLElement>('.wallet-view__pill--new')?.focus();
+    dock.element.querySelector<HTMLElement>('.action-dock__action')?.focus();
   }
 
   update(wallet);
 
-  return { update, focusCardPill };
+  return { update, focusAfterClose };
 }

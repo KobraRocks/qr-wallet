@@ -12,13 +12,13 @@ QR Wallet is an installable, local-only PWA that holds a small Wallet of named C
 
 1. As a first-time owner, I want the Wallet seeded with Visit Card, Website, and Sales Deck examples, so that I understand the workflow before entering my own details.
 2. As a returning owner, I want my last active Card restored on launch, so that the code I need is already on screen.
-3. As an owner, I want every Card as a Pill in a horizontal selector, so that I can see and reach all my codes from one place.
-4. As an owner meeting someone, I want one tap on a Pill to swap the QR Panel instantly, so that the right code appears before the conversation pauses.
-5. As an owner, I want the active Card's label and a short subtitle, so that I can confirm I am showing the right thing.
-6. As an owner, I want a "+ New" Pill in the selector, so that creating a Card is discoverable from the main view.
+3. As an owner, I want every Card in a vertical Card Menu, so that I can reach all my codes from one control.
+4. As an owner meeting someone, I want to swap to the next or previous Card without opening the menu, so that the right code appears before the conversation pauses.
+5. As an owner, I want the active Card's Display Name and a short subtitle naming its kind, so that I can confirm I am showing the right thing.
+6. As an owner, I want a New Card control in the main view's top bar, so that creating a Card is discoverable.
 7. As a recipient, I want a large, uncluttered, high-contrast QR code, so that my camera locks on quickly in poor light.
-8. As an owner, I want the QR Panel to stay black on white in dark mode, so that the code never inverts and fails to scan.
-9. As an owner, I want the QR to fit the screen without scrolling, so that I can hold the phone naturally at arm's length.
+8. As an owner, I want the QR Panel to stay black on warm alabaster, so that the code never inverts and fails to scan.
+9. As an owner, I want the QR to fit the screen without scrolling, so that I can hold the phone naturally at arm's length; on a viewport too short for the square QR Panel, the view scrolls rather than shrinking the code.
 10. As an owner showing a code, I want the screen to stay awake, so that it does not dim while someone scans.
 11. As an owner returning from another app, I want the wake lock reacquired, so that the code stays readable without toggling anything.
 12. As an owner, I want a Visit Card with first name, last name, organization, title, phone, email, and website, so that one scan saves complete contact details.
@@ -55,9 +55,11 @@ QR Wallet is an installable, local-only PWA that holds a small Wallet of named C
 43. As an owner, I want to use the app without an account or sign-in, so that I can start in seconds and keep my data private.
 44. As an owner, I want the app to ask the browser to keep its data, so that storage eviction is less likely.
 45. As an owner using a screen reader or keyboard, I want labeled controls and managed focus, so that I can manage Cards without guessing.
-46. As an owner, I want the shell to follow my system's light/dark setting while the QR Panel stays black on white, so that the app is comfortable without weakening the code.
+46. As an owner, I want one coherent obsidian interface regardless of my system setting, so that the app reads as a single object wherever I open it.
 47. As an owner on a notched phone, I want controls clear of the safe areas, so that nothing hides behind the cutout or home indicator.
-48. As an owner, I want short, required Card labels, so that Pills stay readable and identifiable.
+48. As an owner, I want short, required Card labels, so that Card Menu rows stay readable and identifiable.
+49. As an owner, I want the Card Menu to close as soon as I choose a Card, so that the code is one tap away.
+50. As an owner with several codes, I want to see which Card I am showing, so that I do not hand over the wrong one.
 
 ## Implementation Decisions
 
@@ -72,18 +74,18 @@ QR Wallet is an installable, local-only PWA that holds a small Wallet of named C
 - **Persistence.** The Wallet is stored under the versioned key qr_wallet_v1. Writes are single, atomic operations. A write failure is surfaced and never silently discarded. The persistence boundary accepts an injected Storage implementation, with localStorage as the production default.
 - **Validation and recovery.** Stored state is strictly validated on read. Invalid JSON, an unknown version, or an invalid shape is preserved verbatim under qr_wallet_v1_corrupt, the Seed Cards are created, and a dismissible banner offers the raw copy. There is no speculative migration framework; version 1 is strict until a real v2 exists.
 - **Backup.** Export writes the complete Wallet, including the active Card id, as qr-wallet-backup.json. Import is all-or-nothing: the entire file is validated first (version, shape, per-kind requirements, unique ids, Payload ceiling, at most 100 Cards, at most 1 MB), then the user confirms a replacement, then one atomic write replaces the Wallet. Errors leave the current Wallet untouched. The imported active Card is used when it resolves, otherwise the first Card; an empty Wallet is a valid import.
-- **QR rendering.** QR codes are generated as inline SVG with the qr package at its medium ECC level and a 4-module quiet zone. The SVG string is guarded before insertion and never contains the Payload in markup. The library's scale option is not used; sizing comes from CSS. The SVG carries no colors: the QR Panel supplies a pure white background and pure black fill, so the QR is never themed or inverted.
-- **QR Panel.** The Panel sizes to min(78vw, 340px), has at least 16px of white padding, and hosts a labeled, image-role SVG. It is the only bright, unscaled surface on the screen.
+- **QR rendering.** QR codes are generated as inline SVG with the qr package at its medium ECC level and a 4-module quiet zone. The SVG string is guarded before insertion and never contains the Payload in markup. The library's scale option is not used; sizing comes from CSS. The SVG carries no colors: the QR Panel supplies a warm-alabaster background and pure black fill, so the QR is never themed or inverted.
+- **QR Panel.** The Panel is square and flat: one warm-alabaster fill, no gradient, shadow, or overlay, and no padding beyond the SVG's own quiet zone, which nothing is allowed to touch. It spans the Card Face's inner width on every viewport, including at 200% zoom; it is never capped by viewport height, and a viewport too short for the square inset scrolls vertically rather than shrinking the code. The earlier min(78vw, 340px) floor is superseded because a zoomed viewport's inner width is itself below it. Decorative brackets live on the titanium frame outside it. It hosts a labeled, image-role SVG and is the only bright surface on the screen.
 - **Copy and share.** Copy puts the exact Payload on the clipboard and reports success or failure. Share uses the Web Share API with an SVG file when file sharing is supported; a hard rejection falls back to downloading a slug-named SVG, while a user cancel is a no-op.
-- **Main view.** The top is a horizontally scrollable row of Pills, one per Card plus a "+ New" Pill. The center shows the active Card's label, a short subtitle derived from its kind, the QR Panel, and a row of Edit, Copy Payload, and Share controls. A footer gear opens the Backup dialog. The empty state shows a single create call to action.
+- **Main view.** A three-row grid: a top bar with the Card Menu button, a pager (`‹ n / m ›`, hidden for a single Card, clamping at the ends), and the New Card control; the Card Face showing the Display Name, a subtitle of kind (and organization for a Visit Card that has one), and the QR Panel; and a dock holding Edit, Copy Payload, and Share. The Card Menu is a modal list of every Card, reaching Backup in its footer. The empty state shows a single create call to action.
 - **Editing.** Editing uses a native dialog opened modally. Fields depend on the selected Card Kind, with the kind switcher labeled Visit Card, Link, and Text. Changing kind on an existing Card is allowed; only the saved kind's payload is persisted, while draft values survive for the duration of the dialog. New Cards default to Link with a label matching the kind. Labels are required. Validation is inline and Save does not close the dialog on error. Cancel and Esc discard. The dialog closes on Esc but not on backdrop click, and focus returns to the trigger.
 - **Deleting.** Delete is an inline two-step confirmation inside the edit dialog. Deleting the last Card is allowed and leaves the empty state; the Wallet is not re-seeded.
-- **Theming and layout.** The shell follows the system light/dark preference with no manual toggle. The layout uses 100dvh, safe-area insets, and no text selection on chrome. Toasts are polite live regions. Pills expose their selected state, and dialogs have accessible names.
+- **Theming and layout.** The app ships one obsidian theme, always; it does not follow the system light/dark setting and has no manual toggle. The layout uses 100dvh, safe-area insets, and no text selection on chrome. Toasts are polite live regions. Card Menu rows expose their selected state, the pager announces the position, and dialogs have accessible names. The visual contract lives in docs/design/design.md.
 - **Wake Lock.** A screen wake lock is requested while the main QR view is visible, released when the document becomes hidden, and re-requested on visible. All calls are guarded so unsupported browsers continue without errors.
 - **Service worker.** A hand-written service worker precaches the complete app shell: the shell document, hashed JavaScript and CSS, the manifest, and the icons. The cache name includes a build hash. Install calls skipWaiting; activate deletes old caches and claims clients. Same-origin GET requests are cache-first with a cached shell fallback for navigations. Registration happens only in production builds.
 - **Updates.** When a new worker takes control, an unobtrusive notice offers a reload; the page is never force-reloaded. The app also makes a best-effort persistent-storage request on startup.
 - **Manifest and icons.** The manifest declares the name, short name, relative start URL and scope, standalone display, portrait orientation, theme and background colors, and 192, 512, and maskable 512 PNG icons. The icons are generated by a script, checked in, and include an iOS touch icon and standalone meta tags.
-- **Build and budget.** The build runs the type checker and Vite with a relative base. The asset manifest is injected into the service worker at build time, and the build fails if the injection placeholder is missing. The total shipped JavaScript and CSS stay under 30 KB gzipped. No webfonts or external assets are used.
+- **Build and budget.** The build runs the type checker and Vite with a relative base. The asset manifest is injected into the service worker at build time, and the build fails if the injection placeholder is missing. The total shipped JavaScript and CSS stay under 30 KB gzipped, and JavaScript, CSS, and fonts together stay under 64 KB; both are measured by check:budget. Exactly one font is shipped, vendored and precached; no externally hosted fonts or assets are used.
 - **Documentation.** The README covers local preview, deployment to Cloudflare Pages, GitHub Pages, or any HTTPS static folder, Add to Home Screen on Android and iOS, the Backup workflow, and the iOS storage-eviction caveat.
 
 ## Testing Decisions
@@ -96,12 +98,12 @@ QR Wallet is an installable, local-only PWA that holds a small Wallet of named C
 - **Wallet tests.** Assert seeding when storage is empty; no re-seeding after an intentional empty Wallet; round-trip load/save; active-id repair; rejection of malformed JSON, unknown versions, wrong shapes, duplicate ids, and oversized or over-count Wallets; preservation of corrupt raw state; and surfaced write failures.
 - **Backup tests.** Assert a full export/import round trip, atomic replacement after successful validation, per-kind validation, the size and count ceilings, and that every rejection leaves the existing Wallet untouched. The confirmation prompt itself is UI behavior and is checked manually.
 - **Prior art.** None yet in this repository; this spec establishes the fake-Storage, Node-only pattern.
-- **Not unit-tested.** The DOM, Pills, dialogs, Wake Lock, share sheet, service-worker lifecycle, and icon generation. These are verified through the type check, the production build, the injected precache manifest, measured gzip output, and a manual offline preview reload. On-device install and scanning remain a documented manual check.
+- **Not unit-tested.** The DOM, the Card Menu and pager, dialogs, Wake Lock, share sheet, service-worker lifecycle, and icon generation. These are verified through the type check, the production build, the injected precache manifest, measured gzip output, and a manual offline preview reload. The visual contract is checked with the screenshot kit and the two-phone scan matrix in docs/design/verification.md; screenshots are review material, never assertions. On-device install and scanning remain a documented manual check.
 
 ## Out of Scope
 
 - Backend, accounts, synchronization, cloud backup, analytics, and telemetry.
-- UI or CSS frameworks, Workbox, external fonts, or CDN assets.
+- UI or CSS frameworks, Workbox, externally hosted fonts, or CDN assets. One vendored display font ships with the app (ADR-0004).
 - QR scanning, camera access, or reading codes.
 - PNG rasterization for sharing; sharing produces SVG.
 - vCard 4.0, line folding, custom ECC, QR logos, or branding.
@@ -118,7 +120,10 @@ QR Wallet is an installable, local-only PWA that holds a small Wallet of named C
 ## Further Notes
 
 - The qr package's current API uses the levels low, medium, quartile, and high; "medium" is the default, and the literal `ecc: 'M'` from the original brief would throw. The implementation passes medium explicitly, with no ECC boost option (that option belongs to a different package).
-- The SVG output is transparent and unstyled by design of the package; contrast is enforced by the QR Panel CSS. This also means the QR cannot inherit dark-mode colors.
+- The SVG output is transparent and unstyled by design of the package; contrast is enforced by the QR Panel CSS. This also means the QR cannot inherit theme colors.
+- Scannability is bounded by module size, not by colour: an 800-byte Payload at medium ECC is QR version 23 (117 modules), so the Panel is kept as large as the layout allows and the worst case is scanned on a real device as part of design verification (ADR-0005).
+- The only font is Cormorant Garamond, vendored as a subset woff2 with its OFL licence and precached with the shell; it is display-only and loaded with font-display: optional (ADR-0004).
+- backdrop-filter is used only on the dock and dialog sheets, prefixed for WebKit, over a dark underlay, and never on ::backdrop or over the QR Panel.
 - Installed iOS home-screen apps did not support the Screen Wake Lock API before iOS 18.4; older versions degrade silently. iOS share targets accept SVG in Files, Mail, and Messages but not Photos.
 - iOS can evict site data, including the Wallet and the offline shell, after a period of non-use. The persistent-storage request is best-effort only, so Backup is the real durability mechanism and the README says so.
 - Two decisions meet the bar for ADRs and will be recorded alongside implementation: the Wallet is the local system of record with no backend, and the offline guarantee comes from a cache-first, build-injected service worker rather than Workbox.

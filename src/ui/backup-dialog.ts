@@ -1,6 +1,6 @@
 import type { Wallet } from '../domain/wallet';
 import type { BackupFile } from '../store/backup';
-import { createButton, errorMessage } from './dom';
+import { createButton, createStrokeIcon, errorMessage, type StrokeShape } from './dom';
 import { downloadTextFile } from './download';
 
 /** Callbacks the Backup dialog raises; the app owns the Wallet store and the main view. */
@@ -28,6 +28,19 @@ export interface BackupDialog {
 function cardCount(count: number): string {
   return `${count} ${count === 1 ? 'Card' : 'Cards'}`;
 }
+
+/**
+ * The engraved vault glyph above the title. It is decoration: the dialog is
+ * named by its heading, so the glyph stays aria-hidden and carries no data.
+ */
+const VAULT_GLYPH: readonly StrokeShape[] = [
+  { path: 'M6 3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3z' },
+  { path: 'M3 10h1.5v4H3' },
+  { circle: { cx: 12.5, cy: 12, r: 4.5 } },
+  {
+    path: 'M12.5 7.5v-1M12.5 17.5v-1M8 12H7M18 12h-1M9.3 8.8l-.7-.7M16.4 15.9l-.7-.7M15.7 8.8l.7-.7M9.3 15.2l-.7.7',
+  },
+];
 
 /**
  * Downloads a Backup file through the app's shared object-URL helper. This is
@@ -58,7 +71,9 @@ export function createBackupDialog(
   const title = document.createElement('h2');
   title.className = 'backup-dialog__title';
   title.id = 'backup-dialog-title';
-  title.textContent = 'Backup';
+  title.textContent = 'Private Backup';
+
+  const glyph = createStrokeIcon('backup-dialog__glyph', VAULT_GLYPH);
 
   const note = document.createElement('p');
   note.className = 'backup-dialog__note';
@@ -83,7 +98,7 @@ export function createBackupDialog(
     'backup-dialog__button backup-dialog__button--primary',
   );
   const importButton = createButton('Import JSON', 'backup-dialog__button');
-  const closeButton = createButton('Close', 'backup-dialog__button');
+  const closeButton = createButton('Close', 'backup-dialog__button backup-dialog__button--quiet');
 
   actions.append(exportButton, importButton, closeButton);
 
@@ -120,7 +135,7 @@ export function createBackupDialog(
   // <dialog> itself: that would override the UA rule that hides a closed dialog.
   const body = document.createElement('div');
   body.className = 'backup-dialog__body';
-  body.append(title, note, status, error, actions, confirmZone, fileInput);
+  body.append(glyph, title, note, status, error, actions, confirmZone, fileInput);
 
   dialog.append(body);
   host.append(dialog);
