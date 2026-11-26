@@ -38,8 +38,11 @@ configuration, secrets, or runtime configuration.
 
 Other scripts:
 
-- `npm run icons` — regenerates the checked-in icons in `public/icons/`. It is deterministic,
-  so running it should leave the working tree clean.
+- `npm run icons` — regenerates the checked-in icons in `public/icons/` from the canonical
+  artwork, `docs/design/images/QR-Wallet-Icon-transparent.png`. It needs **ImageMagick**
+  (`magick`) on the development machine — a dev-time tool only, not a dependency, and the
+  checked-in PNGs are the shipped artifact. The same ImageMagick version reproduces identical
+  files, so re-running it leaves the working tree clean.
 - `npm run check:budget` — run after `npm run build`; measures shipped JS + CSS gzipped
   against a 30 KB budget and JS + CSS + fonts against a 64 KB combined budget.
 - `npm run shots` — captures the design-review screenshots into `.artifacts/screenshots/`
