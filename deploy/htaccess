@@ -1,0 +1,11 @@
+# Host configuration for kobra.rocks (Infomaniak, Apache).
+#
+# Uploaded by scripts/deploy.sh when this file exists. It is not part of dist/
+# because Cloudflare Pages and GitHub Pages do not read .htaccess.
+#
+# This Apache has no mapping for .webmanifest: it serves the manifest with no
+# Content-Type at all, and an installable PWA needs application/manifest+json
+# (a missing or non-JSON type makes browsers ignore the manifest). Nothing else
+# is needed — the host already serves .js, .css, .png, .woff2, and .txt with
+# sensible types and adds no long-lived Cache-Control to the shell or worker.
+AddType application/manifest+json .webmanifest
