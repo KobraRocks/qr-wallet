@@ -90,6 +90,32 @@ server requirements; only make sure the host serves the files with sensible MIME
 `application/manifest+json`). Nothing needs to rewrite unknown paths — the app is a single
 document with no client-side routes.
 
+### Production (kobra.rocks)
+
+Production is served from the `web/qr-wallet/` folder of the Infomaniak account, which is the
+`/qr-wallet/` subpath of <https://kobra.rocks/>. The site root is a separate page and is not
+touched.
+
+`npm run deploy` runs the whole pipeline: it refuses a dirty tree or a branch other than
+`main`, runs the tests, builds `dist/`, checks the size budget, snapshots the live release into
+`~/qr-wallet-releases/` on the host (the newest five are kept), syncs `dist/` with
+`rsync --delete`, and then verifies the public URL — every shipped file, its MIME type, the
+service worker's build hash, and that the shell references this build. It exits non-zero if
+anything fails. A fresh checkout needs `npm ci` and SSH access via the `infomaniak` host
+alias.
+
+Host-specific configuration lives in `deploy/htaccess` (not in `dist/`, because Cloudflare
+Pages and GitHub Pages do not use it). The script uploads it only when the file exists, and
+`rsync` excludes `.htaccess` from deletion so a deploy never removes it.
+
+To roll back, list the snapshots (newest first) and restore one:
+
+```sh
+ssh infomaniak 'ls -1t ~/qr-wallet-releases'
+ssh infomaniak 'cd web/qr-wallet && find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + \
+  && tar -xzf "$HOME/qr-wallet-releases/<snapshot>.tar.gz"'
+```
+
 ## Add to Home Screen
 
 ### Android (Chrome)

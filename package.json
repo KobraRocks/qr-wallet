@@ -9,6 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "deploy": "scripts/deploy.sh",
     "test:watch": "vitest",
     "icons": "node scripts/icons.mjs",
     "check:budget": "node scripts/check-budget.ts",
