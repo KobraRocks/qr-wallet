@@ -8,7 +8,8 @@ import { WalletStore } from './store/wallet-store';
 import { createBackupDialog, downloadBackupFile } from './ui/backup-dialog';
 import { createCardActions } from './ui/card-actions';
 import { createCardDialog } from './ui/card-dialog';
-import { renderMainView } from './ui/main-view';
+import { createCardMenu } from './ui/card-menu';
+import { renderMainView, type MainView } from './ui/main-view';
 import { createRecoveryBanner } from './ui/recovery-banner';
 import { createToast } from './ui/toast';
 
@@ -18,10 +19,15 @@ if (root === null) {
 }
 
 // The Wallet store is the only owner of loading, saving, and the active Card id,
-// so a Pill tap, a save, and a delete are all persisted before the view re-renders.
+// so a menu choice, a pager step, a save, and a delete are all persisted before
+// the view re-renders.
 const store = new WalletStore(browserStorage);
 
 let wallet: Wallet = store.load();
+
+// Assigned once the view is mounted; every dialog and the Card Menu reach it
+// through their handlers, and none of them can fire before that.
+let view: MainView;
 
 /**
  * Where focus goes once the editor has closed after a save or delete. Cancel and
@@ -43,33 +49,12 @@ function rememberFocusAfterClose(updated: Wallet): void {
       : { kind: 'card', cardId: updated.activeCardId };
 }
 
-// The editor lives at document level, not inside #app: the main view owns and
-// replaces the contents of its root, and the dialog belongs to the top layer.
-const dialog = createCardDialog(document.body, {
-  onSave(card: Card) {
-    wallet = store.saveCard(card);
-    view.update(wallet);
-    rememberFocusAfterClose(wallet);
-  },
-  onDelete(cardId: string) {
-    wallet = store.deleteCard(cardId);
-    view.update(wallet);
-    rememberFocusAfterClose(wallet);
-  },
-  onClosed() {
-    // After a save or delete the trigger was re-rendered away, so the app puts
-    // focus on the updated Card's Pill (or the empty state's create control).
-    if (focusAfterClose.kind === 'keep-native') {
-      return;
-    }
-    view.focusCardPill(focusAfterClose.kind === 'card' ? focusAfterClose.cardId : null);
-    focusAfterClose = { kind: 'keep-native' };
-  },
-});
-
-// Copy Payload and Share report their result through one polite live region.
-const toast = createToast(document.body);
-const cardActions = createCardActions(toast);
+/** Persists a new active Card and re-renders the main view in place. */
+function selectCard(cardId: string): Wallet {
+  wallet = store.setActiveCard(cardId);
+  view.update(wallet);
+  return wallet;
+}
 
 // Backup export/import and corrupt-state recovery. The Backup workflow is
 // DOM-free at its seam (the store's injected Storage); this wiring only supplies
@@ -84,6 +69,42 @@ const backupDialog = createBackupDialog(document.body, {
   },
 });
 
+// The Card Menu is the Wallet's selector: a modal list that closes on a choice.
+const cardMenu = createCardMenu(document.body, {
+  onChoose: selectCard,
+  onOpenBackup() {
+    backupDialog.open();
+  },
+});
+
+// The editor lives at document level, not inside #app: the main view owns and
+// replaces its own markup, and the dialog belongs to the top layer.
+const dialog = createCardDialog(document.body, {
+  onSave(card: Card) {
+    wallet = store.saveCard(card);
+    view.update(wallet);
+    rememberFocusAfterClose(wallet);
+  },
+  onDelete(cardId: string) {
+    wallet = store.deleteCard(cardId);
+    view.update(wallet);
+    rememberFocusAfterClose(wallet);
+  },
+  onClosed() {
+    // After a save or delete the trigger may have been re-rendered away, so the
+    // app puts focus on the dock's Edit action, or on the empty state's create.
+    if (focusAfterClose.kind === 'keep-native') {
+      return;
+    }
+    view.focusAfterClose(focusAfterClose.kind === 'card' ? focusAfterClose.cardId : null);
+    focusAfterClose = { kind: 'keep-native' };
+  },
+});
+
+// Copy Payload and Share report their result through one polite live region.
+const toast = createToast(document.body);
+const cardActions = createCardActions(toast);
+
 // A corrupt or unknown-version stored Wallet was preserved verbatim on load, so
 // offer the raw copy for download before the owner dismisses the banner.
 const corruptRecovery = store.takeCorruptRecovery();
@@ -91,13 +112,16 @@ if (corruptRecovery !== null) {
   createRecoveryBanner(document.body, () => backup.downloadCorrupt(corruptRecovery));
 }
 
-const view = renderMainView(root, wallet, {
+view = renderMainView(root, wallet, {
   onSelectCard(cardId) {
     wallet = store.setActiveCard(cardId);
     return wallet;
   },
   onNewCard() {
     dialog.openNew(wallet);
+  },
+  onOpenMenu() {
+    cardMenu.open(wallet);
   },
   onEditCard(card) {
     dialog.openEdit(card);
@@ -108,9 +132,6 @@ const view = renderMainView(root, wallet, {
   },
   onShareCard(card) {
     void cardActions.shareQr(card);
-  },
-  onOpenBackup() {
-    backupDialog.open();
   },
 });
 

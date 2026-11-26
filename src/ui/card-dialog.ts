@@ -177,6 +177,19 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
   title.className = 'card-dialog__title';
   title.id = 'card-dialog-title';
 
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'card-dialog__close';
+  closeButton.setAttribute('aria-label', 'Close');
+  closeButton.textContent = '×';
+  closeButton.addEventListener('click', () => {
+    dialog.close();
+  });
+
+  const header = document.createElement('header');
+  header.className = 'card-dialog__header';
+  header.append(title, closeButton);
+
   const kindSwitcher = createKindSwitcher();
 
   const fields = document.createElement('div');
@@ -331,7 +344,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
 
   actions.append(cancelButton, saveButton);
 
-  form.append(title, kindSwitcher.element, fields, formError, deleteZone, actions);
+  form.append(header, kindSwitcher.element, fields, formError, deleteZone, actions);
   dialog.append(form);
   host.append(dialog);
 
