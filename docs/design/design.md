@@ -17,6 +17,11 @@ a hairline champagne edge, and a single warm-alabaster inset that exists only to
 be scanned. Champagne is reserved for active state, primary action, and focus —
 never for body text, never as decoration that competes with the code.
 
+The app icon is the supplied Obsidian & Champagne artwork,
+[`images/QR-Wallet-Icon-transparent.png`](images/QR-Wallet-Icon-transparent.png);
+`npm run icons` derives the install sizes from it, keeping its alpha for the
+`any` and iOS icons and flattening the maskable one onto the canvas colour.
+
 ## Tokens
 
 Declared in `:root` as custom properties. Component rules use tokens, never
