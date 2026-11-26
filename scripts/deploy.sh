@@ -88,6 +88,10 @@ rsync -az --delete --exclude=.htaccess -e "ssh -o BatchMode=yes" \
 if [[ -f deploy/htaccess ]]; then
   log "Uploading host configuration (deploy/htaccess)"
   scp -q -o BatchMode=yes deploy/htaccess "$HOST:$REMOTE_DIR/.htaccess"
+  # Apache reads .htaccess as its own user, not as this account: a 0600 copy
+  # makes it treat the whole folder as forbidden. scp copies the local mode,
+  # so force a world-readable one on the host.
+  "${SSH[@]}" "$HOST" "chmod 644 '$REMOTE_DIR/.htaccess'"
 fi
 
 # --- verify the public URL --------------------------------------------------
