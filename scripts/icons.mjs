@@ -7,10 +7,12 @@
  * the manifest's 192 and 512 `any` icons, its 512 maskable icon, and the iOS
  * 180 apple-touch icon.
  *
- * The `any` and apple-touch icons keep the artwork's alpha — its rounded
- * corners are the design, and iOS applies its own mask. Only the maskable icon
- * is flattened onto the manifest's `#070709` ground, with the artwork at 80% of
- * the canvas so the gold hairline border survives Android's safe-zone mask.
+ * The `any` icons keep the artwork's alpha — its rounded corners are the design.
+ * The apple-touch icon is flattened onto the manifest's `#070709` ground, because
+ * Chrome's apple-touch-icon guidance requires a non-transparent background and
+ * iOS is the one platform that cannot be corrected at runtime. The maskable icon
+ * is flattened onto the same ground with the artwork at 80% of the canvas, so the
+ * gold hairline border survives Android's safe-zone mask.
  *
  * ImageMagick is a development tool, not a dependency: the PNGs are checked in
  * and the test suite reads them directly, so neither the build nor the tests
@@ -36,8 +38,13 @@ const MASKABLE_ARTWORK_FRACTION = 0.8;
 const ICONS = [
   { file: 'icon-192.png', size: 192 },
   { file: 'icon-512.png', size: 512 },
-  { file: 'apple-touch-icon.png', size: 180 },
-  { file: 'icon-maskable-512.png', size: 512, maskable: true },
+  { file: 'apple-touch-icon.png', size: 180, ground: true },
+  {
+    file: 'icon-maskable-512.png',
+    size: 512,
+    ground: true,
+    artworkFraction: MASKABLE_ARTWORK_FRACTION,
+  },
 ];
 
 if (!existsSync(ARTWORK)) {
@@ -60,10 +67,10 @@ mkdirSync(ICONS_DIRECTORY, { recursive: true });
 /** The ImageMagick arguments that write one icon. */
 function iconArguments(icon) {
   const output = join(ICONS_DIRECTORY, icon.file);
-  if (icon.maskable !== true) {
+  if (icon.ground !== true) {
     return [ARTWORK, '-resize', `${icon.size}x${icon.size}`, '-strip', `PNG32:${output}`];
   }
-  const artworkSize = Math.round(icon.size * MASKABLE_ARTWORK_FRACTION);
+  const artworkSize = Math.round(icon.size * (icon.artworkFraction ?? 1));
   return [
     ARTWORK,
     '-resize',

@@ -20,7 +20,8 @@ never for body text, never as decoration that competes with the code.
 The app icon is the supplied Obsidian & Champagne artwork,
 [`images/QR-Wallet-Icon-transparent.png`](images/QR-Wallet-Icon-transparent.png);
 `npm run icons` derives the install sizes from it, keeping its alpha for the
-`any` and iOS icons and flattening the maskable one onto the canvas colour.
+`any` icons and flattening the maskable and iOS icons onto the `#070709` canvas
+colour.
 
 ## Tokens
 

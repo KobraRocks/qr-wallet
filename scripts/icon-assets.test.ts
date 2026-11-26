@@ -16,10 +16,10 @@ const ICONS = [
   { file: 'icon-192.png', size: 192, purpose: 'any' },
   { file: 'icon-512.png', size: 512, purpose: 'any' },
   { file: 'icon-maskable-512.png', size: 512, purpose: 'maskable' },
-  { file: 'apple-touch-icon.png', size: 180, purpose: 'any' },
+  { file: 'apple-touch-icon.png', size: 180, purpose: 'apple-touch' },
 ] as const;
 
-/** The manifest's theme and background colour, also the maskable icon's ground. */
+/** The manifest's theme and background colour, and the ground of the flattened icons. */
 const ICON_BACKGROUND = [7, 7, 9] as const;
 
 const PNG_SIGNATURE = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -143,6 +143,16 @@ function pixelAt(image: RgbaImage, x: number, y: number): readonly [number, numb
   ];
 }
 
+function transparentPixelCount(image: RgbaImage): number {
+  let count = 0;
+  for (let offset = 3; offset < image.data.length; offset += 4) {
+    if (image.data[offset] !== 255) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 /** Smallest x/y box of pixels that differ from the #070709 ground. */
 function artworkBounds(image: RgbaImage): {
   readonly minX: number;
@@ -180,7 +190,7 @@ describe('checked-in app icons', () => {
     });
   }
 
-  it('keeps the rounded corners transparent on the any and apple-touch icons', () => {
+  it('keeps the rounded corners transparent on the any icons', () => {
     for (const icon of ICONS.filter((candidate) => candidate.purpose === 'any')) {
       const image = readIcon(icon.file);
       const last = icon.size - 1;
@@ -197,16 +207,27 @@ describe('checked-in app icons', () => {
     }
   });
 
+  it('flattens the apple-touch icon onto an opaque #070709 ground', () => {
+    const image = readIcon('apple-touch-icon.png');
+    const last = 180 - 1;
+
+    // Chrome's apple-touch-icon guidance requires a non-transparent background.
+    expect(transparentPixelCount(image)).toBe(0);
+    for (const [x, y] of [
+      [0, 0],
+      [last, 0],
+      [0, last],
+      [last, last],
+    ] as const) {
+      expect([...pixelAt(image, x, y)]).toEqual([7, 7, 9, 255]);
+    }
+    expect([...pixelAt(image, 90, 90)]).not.toEqual([7, 7, 9, 255]);
+  });
+
   it('flattens the maskable icon onto an opaque #070709 square', () => {
     const image = readIcon('icon-maskable-512.png');
-    let transparentPixels = 0;
-    for (let offset = 3; offset < image.data.length; offset += 4) {
-      if (image.data[offset] !== 255) {
-        transparentPixels += 1;
-      }
-    }
 
-    expect(transparentPixels).toBe(0);
+    expect(transparentPixelCount(image)).toBe(0);
     for (const [x, y] of [
       [0, 0],
       [511, 0],
