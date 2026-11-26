@@ -30,24 +30,11 @@ let wallet: Wallet = store.load();
 let view: MainView;
 
 /**
- * Where focus goes once the editor has closed after a save or delete. Cancel and
- * Esc keep the browser's native focus return, so nothing is moved for them.
+ * True when the next editor close came from a save or a delete, which must move
+ * focus into the re-rendered view. Cancel and Esc keep the browser's native
+ * focus return, so nothing is moved for them.
  */
-type FocusAfterClose =
-  | { readonly kind: 'keep-native' }
-  | { readonly kind: 'empty-state' }
-  | { readonly kind: 'card'; readonly cardId: string };
-
-/** The focus decision for the next editor close; reset once it has been applied. */
-let focusAfterClose: FocusAfterClose = { kind: 'keep-native' };
-
-/** Remembers where focus belongs after the editor saves or deletes a Card. */
-function rememberFocusAfterClose(updated: Wallet): void {
-  focusAfterClose =
-    updated.activeCardId === null
-      ? { kind: 'empty-state' }
-      : { kind: 'card', cardId: updated.activeCardId };
-}
+let moveFocusAfterClose = false;
 
 /** Persists a new active Card and re-renders the main view in place. */
 function selectCard(cardId: string): Wallet {
@@ -83,21 +70,21 @@ const dialog = createCardDialog(document.body, {
   onSave(card: Card) {
     wallet = store.saveCard(card);
     view.update(wallet);
-    rememberFocusAfterClose(wallet);
+    moveFocusAfterClose = true;
   },
   onDelete(cardId: string) {
     wallet = store.deleteCard(cardId);
     view.update(wallet);
-    rememberFocusAfterClose(wallet);
+    moveFocusAfterClose = true;
   },
   onClosed() {
     // After a save or delete the trigger may have been re-rendered away, so the
     // app puts focus on the dock's Edit action, or on the empty state's create.
-    if (focusAfterClose.kind === 'keep-native') {
+    if (!moveFocusAfterClose) {
       return;
     }
-    view.focusAfterClose(focusAfterClose.kind === 'card' ? focusAfterClose.cardId : null);
-    focusAfterClose = { kind: 'keep-native' };
+    moveFocusAfterClose = false;
+    view.focusAfterClose();
   },
 });
 

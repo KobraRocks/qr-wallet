@@ -37,9 +37,18 @@ literals.
 | `--danger` | `#D46A6A` | Delete and destructive confirmation (5.3:1). |
 | `--danger-edge` | `rgb(212 106 106 / 0.55)` | The crimson hairline around a destructive control. |
 | `--focus-ring` | `#E2CFA8` | 2px solid ring plus a soft champagne glow. |
+| `--on-accent` | `#141316` | Dark text on the champagne primary fill. |
+| `--dock-tint` | `rgb(18 19 22 / 0.72)` | The Dock's frosted underlay. |
+| `--dock-solid` | `#1B1C21` | The Dock's opaque fallback without `backdrop-filter`. |
+| `--backdrop` | `rgb(3 3 4 / 0.72)` | Dimmed dialog backdrop. |
 | `--radius-card` | `20px` | Card Face. |
 | `--radius-sheet` | `24px` | Dialogs and the Card Menu. |
 | `--gutter` | `16px` | Page gutter, before safe-area insets. |
+
+Spacing, type scale, tracking, line widths, blur, and motion also resolve
+through `:root` tokens (`--space-*`, `--type-*`, `--tracking-*`, `--motion-*`),
+as do the element sizes (`--target-size`, `--field-size`, and friends); the
+table above lists the design-significant colour and radius tokens.
 
 Contrast floors: text is at least 4.5:1; non-text UI is at least 3:1; a
 text-bearing surface never exceeds `#2A2B2E` in luminance, because champagne
@@ -88,8 +97,13 @@ These are product rules, not styling preferences. Each one is in
    it, and never overlap it.
 4. Modules stay pure black. The SVG is never recoloured, inverted, rotated, or
    animated.
-5. The inset spans the Card Face's inner width, and its width is never smaller
-   than the previous design's `min(78vw, 340px)`.
+5. The inset spans the Card Face's inner width on every viewport a phone can
+   show, including at 200% zoom, and there is no viewport-height cap on it. A
+   viewport too short for the square inset (landscape, or a zoomed view)
+   scrolls vertically instead of shrinking the code. The previous design's
+   `min(78vw, 340px)` floor is superseded: at 200% zoom the zoomed viewport's
+   own inner width is below that floor, so the full inner width is the largest
+   size that view can show.
 6. The Card Face never clips the inset with a rounded corner; the Card Face
    radius applies to the titanium only.
 

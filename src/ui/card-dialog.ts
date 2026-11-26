@@ -18,7 +18,7 @@ import {
   type VisitCardDraft,
 } from '../domain/card-draft';
 import type { Wallet } from '../domain/wallet';
-import { createButton, errorMessage } from './dom';
+import { createButton, createCloseButton, errorMessage } from './dom';
 
 /** Callbacks the dialog raises; the app owns the Wallet store and the main view. */
 export interface CardDialogHandlers {
@@ -113,9 +113,10 @@ function createField(options: FieldOptions): FormField {
 }
 
 /**
- * The kind switcher: a native radio group labeled Visit Card / Link / Text.
+ * The kind switcher: a list of native radios labeled Visit Card / Link / Text.
  * Native radios bring the group label, roving focus, and arrow-key selection
- * without custom keyboard handling.
+ * without custom keyboard handling; the repeated options are `li` elements
+ * inside the `fieldset`, each holding its own control.
  */
 function createKindSwitcher(): {
   readonly element: HTMLFieldSetElement;
@@ -128,11 +129,13 @@ function createKindSwitcher(): {
   legend.className = 'card-dialog__kind-legend';
   legend.textContent = 'Card Kind';
 
-  const options = document.createElement('div');
+  const options = document.createElement('ul');
   options.className = 'card-dialog__kind-options';
 
   const radios = new Map<CardKind, HTMLInputElement>();
   for (const kind of CARD_KINDS) {
+    const item = document.createElement('li');
+
     const option = document.createElement('label');
     option.className = 'card-dialog__kind-option';
 
@@ -147,7 +150,8 @@ function createKindSwitcher(): {
     name.textContent = CARD_KIND_NAMES[kind];
 
     option.append(radio, name);
-    options.append(option);
+    item.append(option);
+    options.append(item);
     radios.set(kind, radio);
   }
 
@@ -177,12 +181,7 @@ export function createCardDialog(host: HTMLElement, handlers: CardDialogHandlers
   title.className = 'card-dialog__title';
   title.id = 'card-dialog-title';
 
-  const closeButton = document.createElement('button');
-  closeButton.type = 'button';
-  closeButton.className = 'card-dialog__close';
-  closeButton.setAttribute('aria-label', 'Close');
-  closeButton.textContent = '×';
-  closeButton.addEventListener('click', () => {
+  const closeButton = createCloseButton('card-dialog__close', () => {
     dialog.close();
   });
 

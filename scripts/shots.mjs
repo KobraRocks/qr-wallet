@@ -240,6 +240,7 @@ try {
 
   await cdp.send('Page.enable');
   await cdp.send('Runtime.enable');
+  await cdp.send('DOM.enable');
 
   async function setViewport(width, height) {
     await cdp.send('Emulation.setDeviceMetricsOverride', {
@@ -263,6 +264,29 @@ try {
       );
     }
     return result.result.value;
+  }
+
+  /** Runs an expression in the page and returns the handle id of its value. */
+  async function evaluateHandle(expression) {
+    const result = await cdp.send('Runtime.evaluate', { expression });
+    if (result.exceptionDetails !== undefined) {
+      throw new Error(
+        `Page script failed: ${result.exceptionDetails.exception?.description ?? 'unknown'}`,
+      );
+    }
+    return result.result.objectId;
+  }
+
+  /** Polls a page expression until it is truthy, or fails with the description. */
+  async function waitUntil(expression, description, timeoutMs = 3000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (await evaluate(expression)) {
+        return;
+      }
+      await new Promise((done) => setTimeout(done, 50));
+    }
+    throw new Error(`Timed out waiting for ${description}.`);
   }
 
   /** Waits for the next frame so a DOM update has been painted. */
@@ -295,6 +319,9 @@ try {
     await evaluate(`(() => {
       const element = document.querySelector(${JSON.stringify(selector)});
       if (element === null) throw new Error('Missing element: ' + ${JSON.stringify(selector)});
+      // Focus first, like a real pointer press, so native dialog focus return
+      // has the trigger to return to.
+      element.focus();
       element.click();
     })()`);
     await nextFrame();
@@ -389,10 +416,20 @@ try {
 
     const before = await count();
     await evaluate('[...document.querySelectorAll(".wallet-pager__step")][1].click()');
-    await nextFrame();
+    const swap = await evaluate(`(() => {
+      const style = getComputedStyle(document.querySelector('.card-face'));
+      return { animation: style.animationName, duration: style.animationDuration };
+    })()`);
+    await evaluate(
+      'Promise.all(document.getAnimations().map((animation) => animation.finished)).then(() => true)',
+      { awaitPromise: true },
+    );
     const after = await count();
     const stored = await activeId();
-    console.log(`  pager: ${before} -> ${after}, face "${await faceName()}", stored ${stored}`);
+    console.log(
+      `  card swap: animation "${swap.animation}" ${swap.duration}; ` +
+        `pager: ${before} -> ${after}, face "${await faceName()}", stored ${stored}`,
+    );
     await screenshot('main-link');
 
     await click('.wallet-top-bar__control');
@@ -432,7 +469,49 @@ try {
   await click('.wallet-top-bar__control');
   await click('.card-menu__backup');
   await screenshot('private-backup');
+
+  // The confirmation needs a chosen file. Inject a temporary Backup JSON into
+  // the hidden file input over the CDP: no real file picker and no dependency.
+  const backupPath = join(work, 'qr-wallet-backup.json');
+  writeFileSync(
+    backupPath,
+    JSON.stringify(
+      {
+        version: 1,
+        cards: [
+          visitCard('backup-one'),
+          {
+            id: 'backup-two',
+            label: 'Backup Link',
+            updatedAt: '2026-11-26T00:00:00.000Z',
+            source: { kind: 'link', url: 'https://example.com/' },
+          },
+        ],
+        activeCardId: 'backup-one',
+      },
+      null,
+      2,
+    ),
+  );
+  const fileInput = await evaluateHandle('document.querySelector(".backup-dialog input[type=file]")');
+  await cdp.send('DOM.setFileInputFiles', { files: [backupPath], objectId: fileInput });
+  await waitUntil(
+    '!document.querySelector(".backup-dialog__confirm").hidden',
+    'the Backup confirmation',
+  );
+  await screenshot('private-backup-confirm');
+  await click('.backup-dialog__confirm .backup-dialog__button--primary');
+  const importedCards = await evaluate(
+    'JSON.parse(localStorage.getItem("qr_wallet_v1")).cards.length',
+  );
   await close('.backup-dialog');
+  const focusAfterBackup = await evaluate(
+    'document.activeElement === null ? "none" : document.activeElement.getAttribute("aria-label") ?? document.activeElement.textContent',
+  );
+  console.log(
+    `  import confirmation: replaced with ${importedCards} Cards; ` +
+      `focus after close returns to "${focusAfterBackup}"`,
+  );
 
   await withWallet({ version: 1, cards: [visitCard('one-card')], activeCardId: 'one-card' });
   await screenshot('main-single-card');
@@ -445,16 +524,52 @@ try {
   await decodeProxy();
   await evaluate(`localStorage.removeItem(${JSON.stringify(STORAGE_KEY)})`);
 
+  await visit();
+  // Set the emulated media after the navigation: the emulation applies to the
+  // current document, so it must be in place before the swap under test.
   await cdp.send('Emulation.setEmulatedMedia', {
     features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
   });
-  await visit();
+  await nextFrame();
   await screenshot('main-reduced-motion');
+  const reduced = await evaluate(`(() => {
+    [...document.querySelectorAll('.wallet-pager__step')][1].click();
+    const face = getComputedStyle(document.querySelector('.card-face'));
+    const step = getComputedStyle(document.querySelector('.wallet-pager__step'));
+    return {
+      matches: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      animation: face.animationName,
+      animationDuration: face.animationDuration,
+      transitionDuration: step.transitionDuration,
+    };
+  })()`);
+  console.log(
+    `  reduced-motion swap (media matches ${reduced.matches}): ` +
+      `animation "${reduced.animation}" ${reduced.animationDuration}, ` +
+      `transition ${reduced.transitionDuration}`,
+  );
+  await evaluate('[...document.querySelectorAll(".wallet-pager__step")][0].click()');
   await cdp.send('Emulation.setEmulatedMedia', { features: [] });
 
   await setViewport(390, 844);
   await visit();
   await screenshot('main-390x844');
+
+  // The QR Panel keeps the Card Face's inner width: a short viewport scrolls
+  // instead of shrinking it, and a zoomed view is limited only by its own width.
+  await setViewport(844, 390);
+  await visit();
+  const landscape = await panelGeometry();
+  const landscapeScroll = await evaluate('document.documentElement.scrollHeight');
+  console.log(
+    `  landscape 844x390: panel ${landscape.width.toFixed(1)} px wide, ` +
+      `page scrolls to ${landscapeScroll} px in a 390 px viewport`,
+  );
+
+  await setViewport(215, 466);
+  await visit();
+  const zoomed = await panelGeometry();
+  console.log(`  200% zoom (215x466): panel ${zoomed.width.toFixed(1)} px wide`);
 
   console.log(`Screenshots written to ${OUT}`);
   console.log('Review them against docs/design/design.md; run the scan matrix by hand.');

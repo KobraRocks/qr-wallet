@@ -1,5 +1,6 @@
 import { CARD_KIND_NAMES, type Card } from '../domain/card';
 import { resolveActiveCardId, type Wallet } from '../domain/wallet';
+import { createCloseButton } from './dom';
 
 /** Callbacks the Card Menu raises; the app owns the Wallet store and the view. */
 export interface CardMenuHandlers {
@@ -14,7 +15,7 @@ export interface CardMenu {
   open(wallet: Wallet): void;
 }
 
-/** One row's content: the Card's label, and its kind when that adds information. */
+/** One row's content: the Card's label with its kind beneath (issue #12). */
 function createRow(card: Card, isActive: boolean): HTMLLIElement {
   const item = document.createElement('li');
 
@@ -31,17 +32,11 @@ function createRow(card: Card, isActive: boolean): HTMLLIElement {
   label.className = 'card-menu__label';
   label.textContent = card.label;
 
-  const kind = CARD_KIND_NAMES[card.source.kind];
-  button.append(label);
+  const kind = document.createElement('span');
+  kind.className = 'card-menu__kind';
+  kind.textContent = CARD_KIND_NAMES[card.source.kind];
 
-  // A seeded "Visit Card" already says its kind; repeating it is noise.
-  if (kind !== card.label) {
-    const kindLine = document.createElement('span');
-    kindLine.className = 'card-menu__kind';
-    kindLine.textContent = kind;
-    button.append(kindLine);
-  }
-
+  button.append(label, kind);
   item.append(button);
   return item;
 }
@@ -73,12 +68,7 @@ export function createCardMenu(host: HTMLElement, handlers: CardMenuHandlers): C
   title.id = 'card-menu-title';
   title.textContent = 'Cards';
 
-  const close = document.createElement('button');
-  close.type = 'button';
-  close.className = 'card-menu__close';
-  close.setAttribute('aria-label', 'Close');
-  close.textContent = '×';
-  close.addEventListener('click', () => {
+  const close = createCloseButton('card-menu__close', () => {
     dialog.close();
   });
 
